@@ -1,0 +1,566 @@
+{% extends "base.html" %}
+{% block title %}Add Measurement – {{ customer.name }}{% endblock %}
+
+{% block head %}
+<style>
+  .img-selector {
+    cursor: pointer;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    padding: 4px;
+    text-align: center;
+    font-size: 0.72rem;
+    color: #495057;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .img-selector:hover { border-color: #adb5bd; }
+  .img-selector.selected { border-color: #0d6efd; background: #e7f1ff; font-weight: 600; }
+  .img-selector img { display: block; width: 80px; height: 60px; border-radius: 3px; object-fit: cover; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+
+    <div class="card shadow-sm">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0">
+          <i class="bi bi-rulers me-2"></i>
+          New Measurement — <strong>{{ customer.name }}</strong>
+        </h5>
+      </div>
+      <div class="card-body p-4">
+        <form method="post" id="measureForm" enctype="multipart/form-data">
+
+          <!-- Garment type + Date row -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Garment Type <span class="text-danger">*</span></label>
+              <select name="garment_type" id="garmentSelect" class="form-select form-select-lg" required>
+                <option value="">— Select Garment —</option>
+                <option value="shirt">Shirt</option>
+                <option value="pant">Pant</option>
+                <option value="kurta">Kurta</option>
+                <option value="suit">Suit</option>
+                <option value="jacket">Jacket</option>
+                <option value="pyjama">Pyjama</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Order Date</label>
+              <input type="date" name="order_date" class="form-control form-control-lg"
+                     value="{{ today }}">
+            </div>
+          </div>
+
+          <!-- Measurement fields (shown dynamically) -->
+          {% for garment, fields in garment_fields.items() %}
+            <div id="fields-{{ garment }}" class="garment-fields d-none">
+              <h6 class="text-uppercase text-muted mb-3 border-bottom pb-1">
+                {{ garment }} Measurements <small class="text-muted">(in inches)</small>
+              </h6>
+
+              {% if garment == 'shirt' %}
+              <div class="row g-3">
+
+                <!-- No of Shirts -->
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">No of Shirts</label>
+                  <input type="number" name="no_of_shirts" class="form-control"
+                         placeholder="1" min="1" inputmode="numeric">
+                </div>
+
+                <!-- Shirt Type dropdown -->
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">Shirt Type</label>
+                  <select name="shirt_type" class="form-select">
+                    <option value="">— Select —</option>
+                    <option value="Manela">Manela</option>
+                    <option value="Apple-cut">Apple-cut</option>
+                    <option value="Manela-sidecut">Manela-sidecut</option>
+                  </select>
+                </div>
+
+                <!-- Regular inch fields -->
+                {% for field in ['Length','Chest','Stomach','Seat','Shoulder','Sleeve Length','Arm Hole','Elbow','Cuff','Neck','Collar'] %}
+                  <div class="col-md-4 col-sm-6">
+                    <label class="form-label fw-semibold small">{{ field }}</label>
+                    <div class="input-group">
+                      <input type="text" name="{{ field_key(field) }}"
+                             class="form-control" placeholder="0" inputmode="decimal">
+                      <span class="input-group-text">"</span>
+                    </div>
+                  </div>
+                {% endfor %}
+
+                <!-- X-Chest + Front 1-3 -->
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">X-Chest</label>
+                  <div class="input-group">
+                    <input type="text" name="x-chest" class="form-control" placeholder="0" inputmode="decimal">
+                    <span class="input-group-text">"</span>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold small">Front</label>
+                  <div class="row g-2">
+                    {% for i in [1,2,3] %}
+                      <div class="col-4">
+                        <div class="input-group">
+                          <input type="text" name="front_{{ i }}"
+                                 class="form-control" placeholder="0" inputmode="decimal">
+                          <span class="input-group-text">"</span>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+
+                <!-- Back — 3 boxes in one row -->
+                <div class="col-12">
+                  <label class="form-label fw-semibold small">Back</label>
+                  <div class="row g-2">
+                    {% for i in [1,2,3] %}
+                      <div class="col-4">
+                        <div class="input-group">
+                          <input type="text" name="back_{{ i }}"
+                                 class="form-control" placeholder="0" inputmode="decimal">
+                          <span class="input-group-text">"</span>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+
+                <!-- Front-patti dropdown -->
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">Front-patti</label>
+                  <select name="front_patti" class="form-select">
+                    <option value="">— Select —</option>
+                    <option value="Plain">Plain</option>
+                    <option value="Box">Box</option>
+                  </select>
+                </div>
+
+                <!-- Collar Type -->
+                <div class="col-12 mt-1">
+                  <label class="form-label fw-semibold small">Collar Type</label>
+                  <input type="hidden" name="collar_type" id="add_collar_type" value="">
+                  <div class="d-flex gap-2 flex-wrap">
+                    {% for lbl in ['Classic','Mandarin','Spread','Button-Down'] %}
+                    <div class="img-selector" onclick="imgSelect(this,'add_collar_type')" data-value="{{ lbl }}">
+                      <img src="https://placehold.co/80x60" alt="{{ lbl }}">
+                      <div>{{ lbl }}</div>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+
+                <!-- Cuff Type -->
+                <div class="col-12 mt-1">
+                  <label class="form-label fw-semibold small">Cuff Type</label>
+                  <input type="hidden" name="cuff_type" id="add_cuff_type" value="">
+                  <div class="d-flex gap-2 flex-wrap">
+                    {% for lbl in ['Single','Double','French','Barrel'] %}
+                    <div class="img-selector" onclick="imgSelect(this,'add_cuff_type')" data-value="{{ lbl }}">
+                      <img src="https://placehold.co/80x60" alt="{{ lbl }}">
+                      <div>{{ lbl }}</div>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+
+              </div>
+              {% elif garment == 'pant' %}
+              <div class="row g-3">
+
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">No of Pants</label>
+                  <input type="number" name="no_of_pants" class="form-control" placeholder="1" min="1" inputmode="numeric">
+                </div>
+
+                {% for field in ['Length','Waist','Seat','Seat Front','Seat Back','Thighs'] %}
+                  <div class="col-md-4 col-sm-6">
+                    <label class="form-label fw-semibold small">{{ field }}</label>
+                    <div class="input-group">
+                      <input type="text" name="{{ field_key(field) }}" class="form-control" placeholder="0" inputmode="decimal">
+                      <span class="input-group-text">"</span>
+                    </div>
+                  </div>
+                {% endfor %}
+
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">Thighs Type</label>
+                  <select name="thighs_type" class="form-select">
+                    <option value="">— Select —</option>
+                    <option value="Loose">Loose</option>
+                    <option value="Fitting">Fitting</option>
+                  </select>
+                </div>
+
+                {% for field in ['Knee','Knee Height','Calf','Bottom','Ring','Front Fork','Back Fork'] %}
+                  <div class="col-md-4 col-sm-6">
+                    <label class="form-label fw-semibold small">{{ field }}</label>
+                    <div class="input-group">
+                      <input type="text" name="{{ field_key(field) }}" class="form-control" placeholder="0" inputmode="decimal">
+                      <span class="input-group-text">"</span>
+                    </div>
+                  </div>
+                {% endfor %}
+
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">Plates</label>
+                  <select name="plates" class="form-select">
+                    <option value="">— Select —</option>
+                    <option value="Plates">Plates</option>
+                    <option value="Without Plates">Without Plates</option>
+                  </select>
+                </div>
+
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">Belt</label>
+                  <select name="belt" class="form-select">
+                    <option value="">— Select —</option>
+                    <option value="Long Belt">Long Belt</option>
+                    <option value="Cut Belt">Cut Belt</option>
+                  </select>
+                </div>
+
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">Button</label>
+                  <select name="button" class="form-select">
+                    <option value="">— Select —</option>
+                    <option value="Hook">Hook</option>
+                    <option value="Button">Button</option>
+                  </select>
+                </div>
+
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">Sample Pant</label>
+                  <select name="sample_pant" class="form-select">
+                    <option value="">— Select —</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+
+              </div>
+              {% elif garment == 'kurta' %}
+              <div class="row g-3">
+
+                <!-- No of Kurtas -->
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">No of Kurtas</label>
+                  <input type="number" name="no_of_kurtas" class="form-control" placeholder="1" min="1" inputmode="numeric">
+                </div>
+
+                <!-- Kurta Type -->
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">Kurta Type</label>
+                  <select name="kurta_type" class="form-select">
+                    <option value="">— Select —</option>
+                    <option value="Manela">Manela</option>
+                    <option value="Apple-cut">Apple-cut</option>
+                    <option value="Manela-sidecut">Manela-sidecut</option>
+                  </select>
+                </div>
+
+                <!-- Inch fields up to Elbow -->
+                {% for field in ['Length','Chest','Stomach','Seat','Shoulder','Sleeve Length','Arm Hole','Elbow'] %}
+                  <div class="col-md-4 col-sm-6">
+                    <label class="form-label fw-semibold small">{{ field }}</label>
+                    <div class="input-group">
+                      <input type="text" name="{{ field_key(field) }}" class="form-control" placeholder="0" inputmode="decimal">
+                      <span class="input-group-text">"</span>
+                    </div>
+                  </div>
+                {% endfor %}
+
+                <!-- Cuff + Cuff Style -->
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">Cuff</label>
+                  <div class="input-group">
+                    <input type="text" name="cuff" class="form-control" placeholder="0" inputmode="decimal">
+                    <span class="input-group-text">"</span>
+                  </div>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">Cuff Style</label>
+                  <select name="cuff_style" class="form-select">
+                    <option value="">— Select —</option>
+                    <option value="Round">Round</option>
+                    <option value="Cuff">Cuff</option>
+                  </select>
+                </div>
+
+                <!-- Neck, Collar, X-Chest -->
+                {% for field in ['Neck','Collar','X-Chest'] %}
+                  <div class="col-md-4 col-sm-6">
+                    <label class="form-label fw-semibold small">{{ field }}</label>
+                    <div class="input-group">
+                      <input type="text" name="{{ field_key(field) }}" class="form-control" placeholder="0" inputmode="decimal">
+                      <span class="input-group-text">"</span>
+                    </div>
+                  </div>
+                {% endfor %}
+
+                <!-- Front 1-4 -->
+                <div class="col-12">
+                  <label class="form-label fw-semibold small">Front</label>
+                  <div class="row g-2">
+                    {% for i in [1,2,3,4] %}
+                      <div class="col-3">
+                        <div class="input-group">
+                          <input type="text" name="front_{{ i }}" class="form-control" placeholder="0" inputmode="decimal">
+                          <span class="input-group-text">"</span>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+
+                <!-- Back 1-3 -->
+                <div class="col-12">
+                  <label class="form-label fw-semibold small">Back</label>
+                  <div class="row g-2">
+                    {% for i in [1,2,3] %}
+                      <div class="col-4">
+                        <div class="input-group">
+                          <input type="text" name="back_{{ i }}" class="form-control" placeholder="0" inputmode="decimal">
+                          <span class="input-group-text">"</span>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+
+                <!-- Pockets -->
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">Pockets</label>
+                  <select name="pockets" class="form-select">
+                    <option value="">— Select —</option>
+                    <option value="Side Pockets">Side Pockets</option>
+                    <option value="No Pockets">No Pockets</option>
+                  </select>
+                </div>
+
+                <!-- Collar Type -->
+                <div class="col-12 mt-1">
+                  <label class="form-label fw-semibold small">Collar Type</label>
+                  <input type="hidden" name="collar_type" id="kurta_collar_type" value="">
+                  <div class="d-flex gap-2 flex-wrap">
+                    {% for lbl in ['Classic','Mandarin','Spread','Button-Down'] %}
+                    <div class="img-selector" onclick="imgSelect(this,'kurta_collar_type')" data-value="{{ lbl }}">
+                      <img src="https://placehold.co/80x60" alt="{{ lbl }}">
+                      <div>{{ lbl }}</div>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+
+                <!-- Cuff Type -->
+                <div class="col-12 mt-1">
+                  <label class="form-label fw-semibold small">Cuff Type</label>
+                  <input type="hidden" name="cuff_type" id="kurta_cuff_type" value="">
+                  <div class="d-flex gap-2 flex-wrap">
+                    {% for lbl in ['Single','Double','French','Barrel'] %}
+                    <div class="img-selector" onclick="imgSelect(this,'kurta_cuff_type')" data-value="{{ lbl }}">
+                      <img src="https://placehold.co/80x60" alt="{{ lbl }}">
+                      <div>{{ lbl }}</div>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+
+              </div>
+              {% elif garment in ['suit','jacket','pyjama'] %}
+              {% set count_label = {'suit':'No of Suits','jacket':'No of Jackets','pyjama':'No of Pyjamas'}[garment] %}
+              <div class="row g-3">
+                <div class="col-md-4 col-sm-6">
+                  <label class="form-label fw-semibold small">{{ count_label }}</label>
+                  <input type="number" name="{{ field_key(count_label) }}" class="form-control"
+                         placeholder="1" min="1" inputmode="numeric">
+                </div>
+                {% for field in fields if field != count_label %}
+                  <div class="col-md-4 col-sm-6">
+                    <label class="form-label fw-semibold small">{{ field }}</label>
+                    <div class="input-group">
+                      <input type="text" name="{{ field_key(field) }}"
+                             class="form-control" placeholder="0" inputmode="decimal">
+                      <span class="input-group-text">"</span>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="row g-3">
+                {% for field in fields %}
+                  <div class="col-md-4 col-sm-6">
+                    <label class="form-label fw-semibold small">{{ field }}</label>
+                    <div class="input-group">
+                      <input type="text" name="{{ field_key(field) }}"
+                             class="form-control" placeholder="0" inputmode="decimal">
+                      <span class="input-group-text">"</span>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+              {% endif %}
+
+            </div>
+          {% endfor %}
+
+          <!-- Fabric Photo (all garments) -->
+          <div id="photoSection" class="mt-4 d-none">
+            <label class="form-label fw-semibold">Fabric Photo <span class="text-muted small fw-normal">(optional)</span></label>
+            <input type="file" name="fabric_photo" id="fabricPhoto"
+                   class="form-control" accept="image/*" capture="environment">
+            <div id="photoPreview" class="mt-2 d-none">
+              <img id="previewImg" src="" alt="Preview"
+                   style="max-height:160px;border-radius:8px;border:1px solid #dee2e6;">
+              <div class="text-muted small mt-1" id="photoSize"></div>
+            </div>
+          </div>
+
+          <!-- Sample Shirt (shirt only) -->
+          <div id="sampleShirtSection" class="mt-4 d-none">
+            <label class="form-label fw-semibold">Sample Shirt</label>
+            <select name="sample_shirt" class="form-select" style="max-width:200px;">
+              <option value="">— Select —</option>
+              <option value="Yes">Yes</option>
+              <option value="No">No</option>
+            </select>
+          </div>
+
+          <!-- Sample Kurta (kurta only) -->
+          <div id="sampleKurtaSection" class="mt-4 d-none">
+            <label class="form-label fw-semibold">Sample Kurta</label>
+            <select name="sample_kurta" class="form-select" style="max-width:200px;">
+              <option value="">— Select —</option>
+              <option value="Yes">Yes</option>
+              <option value="No">No</option>
+            </select>
+          </div>
+
+          <!-- Trial & Delivery Dates (all garments) -->
+          <div id="datesSection" class="mt-4 d-none">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Trial Date</label>
+                <input type="date" name="trial_date" class="form-control">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Delivery Date</label>
+                <input type="date" name="delivery_date" class="form-control">
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div id="notesSection" class="mt-4 d-none">
+            <label class="form-label fw-semibold">Notes</label>
+            <textarea name="notes" class="form-control" rows="2"
+                      placeholder="Special instructions, etc."></textarea>
+          </div>
+
+          <!-- Buttons -->
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-success btn-lg px-5" id="submitBtn" disabled>
+              <i class="bi bi-check-lg me-1"></i>Save & Print
+            </button>
+            <a href="/customer/{{ customer.id }}" class="btn btn-outline-secondary btn-lg">Cancel</a>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const select              = document.getElementById('garmentSelect');
+  const submitBtn           = document.getElementById('submitBtn');
+  const notesSection        = document.getElementById('notesSection');
+  const photoSection        = document.getElementById('photoSection');
+  const sampleShirtSection  = document.getElementById('sampleShirtSection');
+  const sampleKurtaSection  = document.getElementById('sampleKurtaSection');
+  const datesSection        = document.getElementById('datesSection');
+
+  select.addEventListener('change', function () {
+    document.querySelectorAll('.garment-fields').forEach(el => el.classList.add('d-none'));
+    if (this.value) {
+      document.getElementById('fields-' + this.value).classList.remove('d-none');
+      photoSection.classList.remove('d-none');
+      datesSection.classList.remove('d-none');
+      notesSection.classList.remove('d-none');
+      submitBtn.disabled = false;
+      sampleShirtSection.classList.toggle('d-none', this.value !== 'shirt');
+      sampleKurtaSection.classList.toggle('d-none', this.value !== 'kurta');
+    } else {
+      photoSection.classList.add('d-none');
+      sampleShirtSection.classList.add('d-none');
+      sampleKurtaSection.classList.add('d-none');
+      datesSection.classList.add('d-none');
+      notesSection.classList.add('d-none');
+      submitBtn.disabled = true;
+    }
+  });
+
+  function imgSelect(el, inputId) {
+    el.closest('.d-flex').querySelectorAll('.img-selector').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById(inputId).value = el.dataset.value;
+  }
+
+  // ── Image preview + compression ──────────────────────────────
+  const fabricPhoto = document.getElementById('fabricPhoto');
+  const previewImg  = document.getElementById('previewImg');
+  const photoPreview = document.getElementById('photoPreview');
+  const photoSize   = document.getElementById('photoSize');
+  let compressedBlob = null;
+
+  fabricPhoto.addEventListener('change', function () {
+    const file = this.files[0];
+    if (!file) return;
+    compressImage(file, 900, 900, 0.82, function (blob) {
+      compressedBlob = blob;
+      previewImg.src = URL.createObjectURL(blob);
+      photoPreview.classList.remove('d-none');
+      photoSize.textContent = 'Size after compression: ' + (blob.size / 1024).toFixed(0) + ' KB';
+    });
+  });
+
+  function compressImage(file, maxW, maxH, quality, callback) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const img = new Image();
+      img.onload = function () {
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        if (h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(callback, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Intercept submit to inject compressed image
+  document.getElementById('measureForm').addEventListener('submit', function (e) {
+    if (!compressedBlob) return; // no photo selected, submit normally
+    e.preventDefault();
+    const fd = new FormData(this);
+    fd.delete('fabric_photo');
+    fd.append('fabric_photo', compressedBlob, 'fabric.jpg');
+    fetch(this.action || window.location.href, { method: 'POST', body: fd })
+      .then(r => { window.location.href = r.url; });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Receipt – {{ customer.name }} – {{ receipt.slip_no }}</title>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; }
+
+    .bill-wrapper {
+      max-width: 520px;
+      margin: 30px auto;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,.12);
+    }
+
+    /* Header */
+    .bill-header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 20px 24px 16px;
+      text-align: center;
+    }
+    .bill-header h1 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      margin: 0 0 4px;
+    }
+    .bill-header .address {
+      font-size: .78rem;
+      color: #ccc;
+      margin-bottom: 6px;
+    }
+    .bill-header .contacts {
+      font-size: .8rem;
+      color: #e0e0e0;
+    }
+    .bill-header .contacts span { margin: 0 10px; }
+
+    /* Receipt meta bar */
+    .bill-meta {
+      background: #f8f9fa;
+      border-bottom: 2px solid #1a1a2e;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 24px;
+      font-size: .85rem;
+    }
+    .bill-meta .label { font-size: .68rem; text-transform: uppercase; color: #6b7280; display: block; }
+    .bill-meta .val   { font-weight: 700; font-size: .95rem; }
+
+    /* Customer section */
+    .bill-customer {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .bill-customer-item {
+      padding: 10px 24px;
+      border-right: 1px solid #e5e7eb;
+    }
+    .bill-customer-item:last-child { border-right: none; }
+    .bill-customer-item .lbl { font-size: .68rem; text-transform: uppercase; color: #6b7280; display: block; }
+    .bill-customer-item .val { font-weight: 600; font-size: .95rem; }
+
+    /* Table */
+    .bill-table { padding: 16px 24px 8px; }
+    .bill-table table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .88rem;
+    }
+    .bill-table thead tr {
+      background: #f3f4f6;
+      border-bottom: 2px solid #d1d5db;
+    }
+    .bill-table th {
+      padding: 7px 10px;
+      font-size: .7rem;
+      text-transform: uppercase;
+      color: #6b7280;
+      letter-spacing: .5px;
+    }
+    .bill-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .bill-table tr:last-child td { border-bottom: none; }
+
+    /* Totals */
+    .bill-totals {
+      margin: 0 24px 16px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .bill-totals-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 16px;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: .9rem;
+    }
+    .bill-totals-row:last-child { border-bottom: none; }
+    .bill-totals-row.total-row { background: #f3f4f6; font-weight: 600; }
+    .bill-totals-row.balance-row {
+      background: #1a1a2e;
+      color: #fff;
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    /* Footer */
+    .bill-footer {
+      background: #f9fafb;
+      border-top: 1px solid #e5e7eb;
+      padding: 12px 24px;
+      text-align: center;
+      font-size: .8rem;
+      color: #6b7280;
+    }
+    .bill-footer strong { color: #1a1a2e; }
+
+    /* Action bar */
+    .action-bar {
+      max-width: 520px;
+      margin: 0 auto 16px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .share-btn .spinner { display: none; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 4px; }
+    .share-btn.loading .spinner { display: inline-block; }
+    .share-btn.loading .lbl { opacity: .6; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media print {
+      body { background: #fff; }
+      .action-bar { display: none !important; }
+      .bill-wrapper {
+        max-width: 100%;
+        margin: 0;
+        border: none;
+        box-shadow: none;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="action-bar mt-3 px-2">
+    <button onclick="window.print()" class="btn btn-primary">🖨️ &nbsp;Print</button>
+    <button onclick="shareAsPDF(this)" class="btn btn-success share-btn">
+      <span class="spinner"></span><span class="lbl">📤 Share on WhatsApp</span>
+    </button>
+    <a href="/customer/{{ customer.id }}" class="btn btn-outline-secondary">← Back to Customer</a>
+  </div>
+
+  <div class="bill-wrapper">
+
+    <!-- Shop Header -->
+    <div class="bill-header">
+      <h1>✂ {{ shop }}</h1>
+      <div class="address">{{ shop_address }}</div>
+      <div class="contacts">
+        {% for label, number in shop_contacts.items() %}
+          <span>{{ label }}: {{ number }}</span>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Receipt Meta -->
+    <div class="bill-meta">
+      <div>
+        <span class="label">Receipt</span>
+        <span class="val">{{ receipt.slip_no }}</span>
+      </div>
+      <div>
+        <span class="label">Date</span>
+        <span class="val">{{ receipt.receipt_date }}</span>
+      </div>
+      {% if receipt.delivery_date %}
+      <div>
+        <span class="label">Delivery</span>
+        <span class="val">{{ receipt.delivery_date }}</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Customer Info -->
+    <div class="bill-customer">
+      <div class="bill-customer-item">
+        <span class="lbl">Customer</span>
+        <span class="val">{{ customer.name }}</span>
+      </div>
+      <div class="bill-customer-item">
+        <span class="lbl">Mobile</span>
+        <span class="val">{{ customer.mobile or '—' }}</span>
+      </div>
+    </div>
+
+    <!-- Line Items -->
+    <div class="bill-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Garment</th>
+            <th class="text-center">Qty</th>
+            <th class="text-end">Rate</th>
+            <th class="text-end">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in receipt.line_items %}
+          <tr>
+            <td class="text-capitalize fw-semibold">{{ item.garment }}</td>
+            <td class="text-center">{{ item.qty }}</td>
+            <td class="text-end">₹{{ "{:,.0f}".format(item.rate) }}</td>
+            <td class="text-end">₹{{ "{:,.0f}".format(item.amount) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Totals -->
+    <div class="bill-totals">
+      <div class="bill-totals-row total-row">
+        <span>Total Amount</span>
+        <span>₹{{ "{:,.0f}".format(receipt.total) }}</span>
+      </div>
+      <div class="bill-totals-row">
+        <span>Advance Paid</span>
+        <span>₹{{ "{:,.0f}".format(receipt.advance) }}</span>
+      </div>
+      <div class="bill-totals-row balance-row">
+        <span>Balance Due</span>
+        <span>₹{{ "{:,.0f}".format(receipt.balance) }}</span>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="bill-footer">
+      <div>Thank you for your business!</div>
+      <strong>{{ shop }}</strong>
+    </div>
+
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    async function shareAsPDF(btn) {
+      btn.classList.add('loading');
+      btn.disabled = true;
+      try {
+        const { jsPDF } = window.jspdf;
+        const el = document.querySelector('.bill-wrapper');
+        const canvas = await html2canvas(el, { scale: 2, useCORS: true, allowTaint: true });
+        const imgData = canvas.toDataURL('image/jpeg', 0.92);
+        const pdfW = 210;
+        const pdfH = (canvas.height * pdfW) / canvas.width;
+        const pdf = new jsPDF('p', 'mm', [pdfW, pdfH]);
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+        const fileName = 'Receipt_{{ receipt.slip_no }}_{{ customer.name | replace(" ", "_") }}.pdf';
+        const blob = pdf.output('blob');
+        const file = new File([blob], fileName, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: '{{ customer.name }} – Receipt {{ receipt.slip_no }}' });
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = fileName; a.click();
+          URL.revokeObjectURL(url);
+        }
+      } catch (e) {
+        alert('Could not generate PDF: ' + e.message);
+      } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

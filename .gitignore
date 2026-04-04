@@ -1,0 +1,20 @@
+# Database (contains customer data)
+tailor.db
+
+# Uploaded fabric photos
+static/uploads/
+
+# Cloudflare binary
+cloudflared.exe
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+cf.log
+
+# Memory/notes files
+Memory for claude.txt
+TRANSFER_GUIDE.txt

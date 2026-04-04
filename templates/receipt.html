@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Generate Receipt – {{ customer.name }}{% endblock %}
+
+{% block head %}
+<style>
+  .slip-card {
+    cursor: pointer;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px 16px;
+    transition: border-color .15s, background .15s;
+    user-select: none;
+  }
+  .slip-card:hover { border-color: #adb5bd; background: #f8f9fa; }
+  .slip-card.selected { border-color: #ffc107; background: #fffbea; }
+  .slip-card input[type=checkbox] { width: 18px; height: 18px; accent-color: #ffc107; cursor: pointer; }
+
+  .summary-box {
+    position: sticky;
+    top: 80px;
+    border: 2px solid #ffc107;
+    border-radius: 10px;
+    background: #fff;
+    padding: 20px;
+  }
+  .summary-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: .9rem; }
+  .summary-row.total-row { border-top: 1px solid #dee2e6; font-weight: 700; font-size: 1rem; padding-top: 10px; }
+  .summary-row.balance-row { background: #1a1a2e; color: #fff; border-radius: 6px; padding: 10px 12px; font-weight: 700; font-size: 1.05rem; margin-top: 6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <a href="/customer/{{ customer.id }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back
+  </a>
+</div>
+
+<h4 class="mb-1 fw-bold">
+  <i class="bi bi-receipt me-2 text-warning"></i>Generate Receipt
+</h4>
+<p class="text-muted mb-4">Select the measurement slips to include — <strong>{{ customer.name }}</strong></p>
+
+{% if not slip_items %}
+  <div class="alert alert-info d-flex gap-2 align-items-center">
+    <i class="bi bi-info-circle-fill fs-5"></i>
+    <span>No measurements found. <a href="/customer/{{ customer.id }}/add-measurement">Add one first.</a></span>
+  </div>
+{% else %}
+<form method="post" id="receiptForm">
+  <div class="row g-4">
+
+    <!-- Left: measurement list -->
+    <div class="col-lg-7">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-semibold text-muted small text-uppercase">Measurement Slips</span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleAll">Select All</button>
+      </div>
+
+      <div class="d-flex flex-column gap-2" id="slipList">
+        {% for s in slip_items %}
+        <label class="slip-card d-flex align-items-center gap-3" id="card-{{ s.id }}">
+          <input type="checkbox" name="measurement_ids" value="{{ s.id }}"
+                 data-amount="{{ s.amount }}"
+                 class="slip-check flex-shrink-0">
+          <div class="flex-grow-1">
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="fw-semibold text-capitalize">{{ s.garment }}
+                <span class="badge bg-secondary ms-1 fw-normal">#{{ '%04d' % s.id }}</span>
+              </span>
+              <span class="fw-bold text-dark">₹{{ "{:,.0f}".format(s.amount) }}</span>
+            </div>
+            <div class="text-muted small mt-1">
+              Qty: {{ s.qty }} &nbsp;·&nbsp; Rate: ₹{{ "{:,.0f}".format(s.rate) }} &nbsp;·&nbsp; {{ s.order_date }}
+            </div>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Right: summary -->
+    <div class="col-lg-5">
+      <div class="summary-box">
+        <h6 class="fw-bold mb-3 text-uppercase text-muted small">Receipt Summary</h6>
+
+        <div id="selectedList" class="mb-2" style="min-height:40px;">
+          <div class="text-muted small fst-italic" id="noSelectionMsg">No slips selected</div>
+        </div>
+
+        <div class="summary-row total-row">
+          <span>Total</span>
+          <span id="totalDisplay">₹0</span>
+        </div>
+
+        <div class="summary-row align-items-center" style="gap:8px;">
+          <span>Advance Paid</span>
+          <div class="input-group input-group-sm" style="max-width:140px;">
+            <span class="input-group-text">₹</span>
+            <input type="number" name="advance" id="advanceInput"
+                   class="form-control text-end" value="0" min="0" step="1">
+          </div>
+        </div>
+
+        <div class="summary-row balance-row">
+          <span>Balance Due</span>
+          <span id="balanceDisplay">₹0</span>
+        </div>
+
+        <button type="submit" class="btn btn-warning w-100 mt-3 fw-bold" id="submitBtn" disabled>
+          <i class="bi bi-printer me-1"></i>Save & Print Receipt
+        </button>
+        <div class="text-muted small text-center mt-2" id="selectionCount">0 slips selected</div>
+      </div>
+    </div>
+
+  </div>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const checks   = document.querySelectorAll('.slip-check');
+  const totalEl  = document.getElementById('totalDisplay');
+  const balEl    = document.getElementById('balanceDisplay');
+  const advInput = document.getElementById('advanceInput');
+  const submitBtn = document.getElementById('submitBtn');
+  const countEl  = document.getElementById('selectionCount');
+  const noMsg    = document.getElementById('noSelectionMsg');
+  const selList  = document.getElementById('selectedList');
+
+  function fmt(n) {
+    return '₹' + Math.max(0, n).toLocaleString('en-IN');
+  }
+
+  function recalc() {
+    let total = 0, count = 0;
+    const lines = [];
+
+    checks.forEach(cb => {
+      const card = cb.closest('.slip-card');
+      if (cb.checked) {
+        total += parseFloat(cb.dataset.amount) || 0;
+        count++;
+        card.classList.add('selected');
+        // build line for summary
+        const name = card.querySelector('.fw-semibold').textContent.trim();
+        const amt  = cb.dataset.amount;
+        lines.push(`<div class="summary-row"><span class="text-capitalize">${name}</span><span>₹${parseFloat(amt).toLocaleString('en-IN')}</span></div>`);
+      } else {
+        card.classList.remove('selected');
+      }
+    });
+
+    const adv = parseFloat(advInput.value) || 0;
+    totalEl.textContent  = fmt(total);
+    balEl.textContent    = fmt(total - adv);
+    countEl.textContent  = count + ' slip' + (count !== 1 ? 's' : '') + ' selected';
+    submitBtn.disabled   = count === 0;
+
+    if (lines.length) {
+      noMsg.style.display = 'none';
+      selList.innerHTML   = lines.join('') + noMsg.outerHTML;
+      document.getElementById('noSelectionMsg').style.display = 'none';
+    } else {
+      selList.innerHTML   = noMsg.outerHTML;
+    }
+  }
+
+  checks.forEach(cb => cb.addEventListener('change', recalc));
+  advInput && advInput.addEventListener('input', recalc);
+
+  // Toggle all
+  const toggleBtn = document.getElementById('toggleAll');
+  let allSelected = false;
+  toggleBtn && toggleBtn.addEventListener('click', function () {
+    allSelected = !allSelected;
+    checks.forEach(cb => cb.checked = allSelected);
+    this.textContent = allSelected ? 'Deselect All' : 'Select All';
+    recalc();
+  });
+</script>
+{% endblock %}

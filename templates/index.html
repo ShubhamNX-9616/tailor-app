@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Home – {{ shop }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+
+    <!-- Search bar -->
+    <form method="get" action="/" class="mb-4">
+      <div class="input-group input-group-lg shadow-sm">
+        <span class="input-group-text bg-white border-end-0">
+          <i class="bi bi-search text-muted"></i>
+        </span>
+        <input type="text" name="q" class="form-control border-start-0 ps-0"
+               placeholder="Search by name or mobile number…"
+               value="{{ query }}" autofocus>
+        <button class="btn btn-primary px-4" type="submit">Search</button>
+        {% if query %}
+          <a href="/" class="btn btn-outline-secondary">Clear</a>
+        {% endif %}
+      </div>
+    </form>
+
+    <!-- Results header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0 text-muted">
+        {% if query %}
+          Results for "<strong>{{ query }}</strong>"
+          ({{ customers|length }} found)
+        {% else %}
+          Recent Customers
+        {% endif %}
+      </h5>
+      <a href="/customer/add" class="btn btn-success btn-sm">
+        <i class="bi bi-person-plus-fill me-1"></i>Add New Customer
+      </a>
+    </div>
+
+    <!-- Customer list -->
+    {% if customers %}
+      <div class="list-group shadow-sm">
+        {% for c in customers %}
+          <a href="/customer/{{ c.id }}"
+             class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3">
+            <div>
+              <div class="fw-semibold fs-6">{{ c.name }}</div>
+              <div class="text-muted small">
+                <i class="bi bi-phone me-1"></i>{{ c.mobile or '—' }}
+              </div>
+            </div>
+            <div class="text-end">
+              <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill">
+                View <i class="bi bi-chevron-right"></i>
+              </span>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-person-x display-4 d-block mb-2"></i>
+        {% if query %}
+          No customers found for "{{ query }}"
+        {% else %}
+          No customers yet. Add your first customer!
+        {% endif %}
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

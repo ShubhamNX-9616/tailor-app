@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Print – {{ customer.name }} – {{ measurement.garment_type|title }}</title>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; }
+
+    .slip-wrapper {
+      max-width: 680px;
+      margin: 30px auto;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,.12);
+    }
+
+    .slip-header {
+      background: #1a56db;
+      color: #fff;
+      padding: 18px 24px 14px;
+      border-bottom: 4px solid #1142a6;
+    }
+    .slip-header h2 { font-size: 1.5rem; margin: 0; letter-spacing: 1px; }
+    .slip-header .garment-badge {
+      display: inline-block;
+      background: rgba(255,255,255,.25);
+      border-radius: 4px;
+      padding: 2px 10px;
+      font-size: .85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+
+    .slip-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .slip-info-item {
+      padding: 10px 24px;
+      border-right: 1px solid #e5e7eb;
+    }
+    .slip-info-item:last-child { border-right: none; }
+    .slip-info-item label { font-size: .7rem; text-transform: uppercase; color: #6b7280; display: block; }
+    .slip-info-item span { font-size: 1rem; font-weight: 600; }
+
+    .measurements-section { padding: 16px 24px 12px; }
+    .measurements-section h3 {
+      font-size: .75rem;
+      text-transform: uppercase;
+      color: #6b7280;
+      letter-spacing: 1px;
+      border-bottom: 1px dashed #d1d5db;
+      padding-bottom: 6px;
+      margin-bottom: 12px;
+    }
+
+    .measure-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px 12px;
+    }
+
+    .measure-item {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 8px 12px;
+    }
+    .measure-item .label {
+      font-size: .68rem;
+      text-transform: uppercase;
+      color: #9ca3af;
+      display: block;
+    }
+    .measure-item .value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #111827;
+    }
+    .measure-item .unit {
+      font-size: .75rem;
+      color: #6b7280;
+    }
+
+    .notes-section {
+      margin: 0 24px 16px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: .9rem;
+    }
+    .notes-section strong { color: #92400e; }
+
+    .slip-footer {
+      background: #f9fafb;
+      border-top: 1px solid #e5e7eb;
+      padding: 10px 24px;
+      font-size: .75rem;
+      color: #9ca3af;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Screen action bar */
+    .action-bar {
+      max-width: 680px;
+      margin: 0 auto 16px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .share-btn .spinner { display: none; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 4px; }
+    .share-btn.loading .spinner { display: inline-block; }
+    .share-btn.loading .lbl { opacity: .6; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── PRINT ─────────────────────────────────── */
+    @media print {
+      body { background: #fff; }
+      .action-bar { display: none !important; }
+      .slip-wrapper {
+        max-width: 100%;
+        margin: 0;
+        border: none;
+        box-shadow: none;
+        border-radius: 0;
+      }
+      .measure-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Action buttons (hidden on print) -->
+  <div class="action-bar no-print mt-3 px-2">
+    <button onclick="window.print()" class="btn btn-primary">
+      🖨️ &nbsp;Print
+    </button>
+    <button onclick="shareAsPDF(this)" class="btn btn-success share-btn">
+      <span class="spinner"></span><span class="lbl">📤 Share on WhatsApp</span>
+    </button>
+    <a href="/customer/{{ customer.id }}" class="btn btn-outline-secondary">
+      ← Back to Customer
+    </a>
+    <a href="/measurement/{{ measurement.id }}/edit" class="btn btn-outline-secondary">
+      ✏️ Edit
+    </a>
+    <a href="/customer/{{ customer.id }}/add-measurement" class="btn btn-outline-success">
+      + New Measurement
+    </a>
+  </div>
+
+  <!-- The slip -->
+  <div class="slip-wrapper">
+
+    <!-- Header -->
+    <div class="slip-header">
+      <h2>✂ {{ shop }}</h2>
+      <div class="garment-badge">
+        {{ measurement.garment_type | title }}
+        {% if measurement.measurements.get('Shirt Type') %}
+          &mdash; {{ measurement.measurements['Shirt Type'] }}
+        {% elif measurement.measurements.get('Kurta Type') %}
+          &mdash; {{ measurement.measurements['Kurta Type'] }}
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Customer info row -->
+    <div class="slip-info">
+      <div class="slip-info-item">
+        <label>Customer</label>
+        <span>{{ customer.name }}</span>
+      </div>
+      <div class="slip-info-item">
+        <label>Mobile</label>
+        <span>{{ customer.mobile or '—' }}</span>
+      </div>
+      <div class="slip-info-item">
+        <label>Order Date</label>
+        <span>{{ measurement.order_date }}</span>
+      </div>
+      <div class="slip-info-item">
+        <label>Slip #</label>
+        <span>#{{ '%04d' % measurement.id }}</span>
+      </div>
+      {% if measurement.trial_date %}
+      <div class="slip-info-item">
+        <label>Trial Date</label>
+        <span>{{ measurement.trial_date }}</span>
+      </div>
+      {% endif %}
+      {% if measurement.delivery_date %}
+      <div class="slip-info-item">
+        <label>Delivery Date</label>
+        <span>{{ measurement.delivery_date }}</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Measurements -->
+    <div class="measurements-section">
+      {% set non_inch = ['Shirt Type','No of Shirts','Front-patti','Sample Shirt','Collar Type','Cuff Type','No of Pants','Thighs Type','Plates','Belt','Button','Sample Pant','No of Kurtas','Kurta Type','Cuff Style','Pockets','Sample Kurta','No of Suits','No of Jackets','No of Pyjamas'] %}
+      {% set skip_grid = ['Shirt Type','Kurta Type','Front 1','Front 2','Front 3','Front 4','Back 1','Back 2','Back 3','Collar Type','Cuff Type','Sample Shirt','Sample Kurta'] %}
+      <h3>Measurements (inches)</h3>
+      <div class="measure-grid">
+        {% for field, value in measurement.measurements.items() %}
+          {% if value and field not in skip_grid %}
+            <div class="measure-item">
+              <span class="label">{{ field }}</span>
+              <span class="value">
+                {{ value }}{% if field not in non_inch %}<span class="unit">"</span>{% endif %}
+              </span>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      {# Collar Type, Cuff Type, Sample Shirt/Kurta as labels #}
+      {% set label_fields = ['Collar Type','Cuff Type','Sample Shirt','Sample Kurta'] %}
+      {% set label_vals = [] %}
+      {% for f in label_fields %}{% if measurement.measurements.get(f) %}{% set _ = label_vals.append((f, measurement.measurements[f])) %}{% endif %}{% endfor %}
+      {% if label_vals %}
+        <div style="margin-top:10px;display:flex;gap:16px;flex-wrap:wrap;">
+          {% for f, v in label_vals %}
+            <div class="measure-item" style="min-width:120px;">
+              <span class="label">{{ f }}</span>
+              <span class="value" style="font-size:.95rem;">{{ v }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {# Front row #}
+      {% set front_vals = [] %}
+      {% for i in [1,2,3,4] %}{% if measurement.measurements.get('Front ' ~ i) %}{% set _ = front_vals.append(measurement.measurements['Front ' ~ i]) %}{% endif %}{% endfor %}
+      {% if front_vals %}
+        <div style="margin-top:10px;">
+          <div style="font-size:.68rem;text-transform:uppercase;color:#9ca3af;letter-spacing:.5px;margin-bottom:4px;">Front</div>
+          <div style="display:flex;gap:8px;">
+            {% for v in front_vals %}
+              <div class="measure-item" style="flex:1;text-align:center;">
+                <span class="value">{{ v }}<span class="unit">"</span></span>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      {# Back row #}
+      {% set back_vals = [] %}
+      {% for i in [1,2,3] %}{% if measurement.measurements.get('Back ' ~ i) %}{% set _ = back_vals.append(measurement.measurements['Back ' ~ i]) %}{% endif %}{% endfor %}
+      {% if back_vals %}
+        <div style="margin-top:10px;">
+          <div style="font-size:.68rem;text-transform:uppercase;color:#9ca3af;letter-spacing:.5px;margin-bottom:4px;">Back</div>
+          <div style="display:flex;gap:8px;">
+            {% for v in back_vals %}
+              <div class="measure-item" style="flex:1;text-align:center;">
+                <span class="value">{{ v }}<span class="unit">"</span></span>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+    </div>
+
+    <!-- Fabric Photo -->
+    {% if measurement.image %}
+      <div style="padding: 0 24px 16px;">
+        <div style="font-size:.7rem;text-transform:uppercase;color:#9ca3af;letter-spacing:.5px;margin-bottom:6px;">Fabric Photo</div>
+        <img src="{{ url_for('static', filename='uploads/' ~ measurement.image) }}"
+             alt="Fabric"
+             style="max-width:100%;max-height:220px;border-radius:6px;border:1px solid #e5e7eb;object-fit:cover;">
+      </div>
+    {% endif %}
+
+    <!-- Notes -->
+    {% if measurement.notes %}
+      <div class="notes-section">
+        <strong>Notes:</strong> {{ measurement.notes }}
+      </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div class="slip-footer">
+      <span>{{ shop }}</span>
+      <span>Slip #{{ '%04d' % measurement.id }} &bull; {{ measurement.order_date }}</span>
+    </div>
+
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    // Auto-open print dialog when navigated here after saving
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('autoprint') === '1') {
+      window.onload = () => window.print();
+    }
+
+    async function shareAsPDF(btn) {
+      btn.classList.add('loading');
+      btn.disabled = true;
+      try {
+        const { jsPDF } = window.jspdf;
+        const el = document.querySelector('.slip-wrapper');
+        const canvas = await html2canvas(el, { scale: 2, useCORS: true, allowTaint: true });
+        const imgData = canvas.toDataURL('image/jpeg', 0.92);
+        const pdfW = 210;
+        const pdfH = (canvas.height * pdfW) / canvas.width;
+        const pdf = new jsPDF('p', 'mm', [pdfW, pdfH]);
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+        const fileName = 'Measurement_Slip_{{ "%04d" % measurement.id }}_{{ customer.name | replace(" ", "_") }}.pdf';
+        const blob = pdf.output('blob');
+        const file = new File([blob], fileName, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: '{{ customer.name }} – Measurement Slip' });
+        } else {
+          // Fallback: direct download
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = fileName; a.click();
+          URL.revokeObjectURL(url);
+        }
+      } catch (e) {
+        alert('Could not generate PDF: ' + e.message);
+      } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

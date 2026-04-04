@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Add Customer – {{ shop }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card shadow-sm">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-person-plus-fill me-2"></i>Add New Customer</h5>
+      </div>
+      <div class="card-body p-4">
+        {% if error %}
+          <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Customer Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control form-control-lg"
+                   placeholder="e.g. Ramesh Sharma" required autofocus>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Mobile Number</label>
+            <input type="tel" name="mobile" class="form-control form-control-lg"
+                   placeholder="e.g. 9876543210">
+          </div>
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-success btn-lg">
+              <i class="bi bi-check-lg me-1"></i>Add Customer
+            </button>
+            <a href="/" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
