@@ -25,3 +25,11 @@ cf.log
 # Memory/notes files
 Memory for claude.txt
 TRANSFER_GUIDE.txt
+
+# Cloudflare logs
+cloudflared.log
+
+
+# OS files
+.DS_Store
+Thumbs.db

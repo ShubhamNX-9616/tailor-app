@@ -1,8 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for, make_response
+from flask import Flask, render_template, request, redirect, url_for, make_response, jsonify
 import sqlite3
 import json
 import os
-from datetime import datetime
+import calendar as cal_module
+from datetime import datetime, date as date_obj, timedelta
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -28,12 +29,13 @@ SHOP_ADDRESS  = "Krishna Chowk, Vidya Nagar, New Sangavi, Pune, Pimpri-Chinchwad
 SHOP_CONTACTS = {"Master": "+91 96899 24060", "Shop": "+91 92846 30254"}
 
 STITCHING_COST = {
-    'shirt':  450,
-    'pant':   550,
-    'kurta':  500,
-    'suit':   3200,
-    'jacket': 1200,
-    'pyjama': 500,
+    'shirt':        450,
+    'pant':         550,
+    'kurta':        500,
+    'kurta_astar':  1000,
+    'suit':         3200,
+    'jacket':       1200,
+    'pyjama':       500,
 }
 
 GARMENT_QTY_FIELD = {
@@ -48,7 +50,7 @@ GARMENT_QTY_FIELD = {
 GARMENT_FIELDS = {
     'shirt': ['No of Shirts', 'Shirt Type', 'Length', 'Chest', 'Stomach', 'Seat', 'Shoulder', 'Sleeve Length', 'Arm Hole', 'Elbow', 'Cuff', 'Neck', 'X-Chest', 'Front 1', 'Front 2', 'Front 3', 'Back 1', 'Back 2', 'Back 3', 'Front-patti', 'Collar', 'Sample Shirt', 'Collar Type', 'Cuff Type'],
     'pant':  ['No of Pants', 'Length', 'Waist', 'Seat', 'Seat Front', 'Seat Back', 'Thighs', 'Thighs Type', 'Knee', 'Knee Height', 'Calf', 'Bottom', 'Ring', 'Front Fork', 'Back Fork', 'Plates', 'Belt', 'Button', 'Sample Pant'],
-    'kurta': ['No of Kurtas', 'Kurta Type', 'Length', 'Chest', 'Stomach', 'Seat', 'Shoulder', 'Sleeve Length', 'Arm Hole', 'Elbow', 'Cuff', 'Cuff Style', 'Neck', 'Collar', 'X-Chest', 'Front 1', 'Front 2', 'Front 3', 'Front 4', 'Back 1', 'Back 2', 'Back 3', 'Pockets', 'Collar Type', 'Cuff Type', 'Sample Kurta'],
+    'kurta': ['No of Kurtas', 'Kurta Type', 'Length', 'Chest', 'Stomach', 'Seat', 'Shoulder', 'Sleeve Length', 'Arm Hole', 'Elbow', 'Cuff', 'Cuff Style', 'Neck', 'Collar', 'X-Chest', 'Front 1', 'Front 2', 'Front 3', 'Front 4', 'Back 1', 'Back 2', 'Back 3', 'Pockets', 'Astar', 'Collar Type', 'Sample Kurta'],
     'suit':  ['No of Suits', 'Length', 'Chest', 'Stomach', 'Seat', 'Shoulder', 'Sleeve Length', 'Arms', 'Neck'],
     'jacket':['No of Jackets', 'Length', 'Chest', 'Stomach', 'Seat', 'Shoulder', 'Sleeve Length', 'Arms', 'Neck'],
     'pyjama':['No of Pyjamas', 'Length', 'Waist', 'Seat', 'Thighs', 'Knee', 'Bottom', 'Ring'],
@@ -105,6 +107,9 @@ def init_db():
         "ALTER TABLE measurements ADD COLUMN image TEXT",
         "ALTER TABLE measurements ADD COLUMN trial_date DATE",
         "ALTER TABLE measurements ADD COLUMN delivery_date DATE",
+        "ALTER TABLE measurements ADD COLUMN status TEXT DEFAULT 'pending'",
+        "ALTER TABLE measurements ADD COLUMN trial_done_date DATE",
+        "ALTER TABLE measurements ADD COLUMN actual_delivery_date DATE",
     ]:
         try:
             conn.execute(migration)
@@ -119,15 +124,18 @@ def parse_measurements(rows):
     result = []
     for m in rows:
         result.append({
-            'id':            m['id'],
-            'garment_type':  m['garment_type'],
-            'measurements':  json.loads(m['measurements']),
-            'notes':         m['notes'],
-            'image':         m['image'],
-            'order_date':    m['order_date'],
-            'trial_date':    m['trial_date'],
-            'delivery_date': m['delivery_date'],
-            'created_at':    m['created_at'],
+            'id':                   m['id'],
+            'garment_type':         m['garment_type'],
+            'measurements':         json.loads(m['measurements']),
+            'notes':                m['notes'],
+            'image':                m['image'],
+            'order_date':           m['order_date'],
+            'trial_date':           m['trial_date'],
+            'delivery_date':        m['delivery_date'],
+            'created_at':           m['created_at'],
+            'status':               m['status'] or 'pending',
+            'trial_done_date':      m['trial_done_date'],
+            'actual_delivery_date': m['actual_delivery_date'],
         })
     return result
 
@@ -146,8 +154,13 @@ def index():
         customers = conn.execute(
             "SELECT * FROM customers ORDER BY created_at DESC LIMIT 30"
         ).fetchall()
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    overdue_count = conn.execute(
+        "SELECT COUNT(*) FROM measurements WHERE delivery_date < ? AND (status IS NULL OR status != 'delivered')",
+        (today_str,)
+    ).fetchone()[0]
     conn.close()
-    return render_template('index.html', customers=customers, query=query, shop=SHOP_NAME)
+    return render_template('index.html', customers=customers, query=query, shop=SHOP_NAME, overdue_count=overdue_count)
 
 
 @app.route('/customer/add', methods=['GET', 'POST'])
@@ -290,14 +303,17 @@ def print_measurement(measurement_id):
     cust = conn.execute("SELECT * FROM customers WHERE id = ?", (m['customer_id'],)).fetchone()
     conn.close()
     data = {
-        'id':            m['id'],
-        'garment_type':  m['garment_type'],
-        'measurements':  json.loads(m['measurements']),
-        'notes':         m['notes'],
-        'image':         m['image'],
-        'order_date':    m['order_date'],
-        'trial_date':    m['trial_date'],
-        'delivery_date': m['delivery_date'],
+        'id':                   m['id'],
+        'garment_type':         m['garment_type'],
+        'measurements':         json.loads(m['measurements']),
+        'notes':                m['notes'],
+        'image':                m['image'],
+        'order_date':           m['order_date'],
+        'trial_date':           m['trial_date'],
+        'delivery_date':        m['delivery_date'],
+        'status':               m['status'] or 'pending',
+        'trial_done_date':      m['trial_done_date'],
+        'actual_delivery_date': m['actual_delivery_date'],
     }
     return render_template('print_measurement.html', customer=cust, measurement=data, shop=SHOP_NAME)
 
@@ -352,10 +368,16 @@ def receipt(customer_id):
             mdata   = json.loads(row['measurements'])
             qty_key = GARMENT_QTY_FIELD.get(garment, '')
             qty     = int(mdata.get(qty_key) or 1)
-            rate    = STITCHING_COST.get(garment, 0)
+            # Kurta with Astar = Yes gets a different price and label
+            if garment == 'kurta' and mdata.get('Astar') == 'Yes':
+                label = 'kurta-astar'
+                rate  = STITCHING_COST['kurta_astar']
+            else:
+                label = garment
+                rate  = STITCHING_COST.get(garment, 0)
             amount  = qty * rate
             total  += amount
-            items.append({'garment': garment, 'qty': qty, 'rate': rate, 'amount': amount,
+            items.append({'garment': label, 'qty': qty, 'rate': rate, 'amount': amount,
                           'measurement_id': row['id']})
 
         balance       = total - advance
@@ -386,10 +408,15 @@ def receipt(customer_id):
         mdata   = json.loads(row['measurements'])
         qty_key = GARMENT_QTY_FIELD.get(garment, '')
         qty     = int(mdata.get(qty_key) or 1)
-        rate    = STITCHING_COST.get(garment, 0)
+        if garment == 'kurta' and mdata.get('Astar') == 'Yes':
+            label = 'kurta-astar'
+            rate  = STITCHING_COST['kurta_astar']
+        else:
+            label = garment
+            rate  = STITCHING_COST.get(garment, 0)
         slip_items.append({
             'id':         row['id'],
-            'garment':    garment,
+            'garment':    label,
             'order_date': row['order_date'],
             'qty':        qty,
             'rate':       rate,
@@ -434,6 +461,141 @@ def print_receipt(receipt_id):
     return render_template('print_receipt.html', customer=cust, receipt=data,
                            shop=SHOP_NAME, shop_address=SHOP_ADDRESS,
                            shop_contacts=SHOP_CONTACTS)
+
+
+@app.route('/measurement/<int:measurement_id>/update-status', methods=['POST'])
+def update_status(measurement_id):
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data'}), 400
+
+    new_status = data.get('new_status')
+    trial_done_date     = data.get('trial_done_date') or None
+    actual_delivery_date = data.get('actual_delivery_date') or None
+
+    valid_statuses = ['pending', 'in_progress', 'trial_ready', 'delivered']
+    if new_status not in valid_statuses:
+        return jsonify({'success': False, 'error': 'Invalid status'}), 400
+
+    status_order = {'pending': 0, 'in_progress': 1, 'trial_ready': 2, 'delivered': 3}
+
+    conn = get_db()
+    m = conn.execute("SELECT status FROM measurements WHERE id = ?", (measurement_id,)).fetchone()
+    if not m:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Not found'}), 404
+
+    current = m['status'] or 'pending'
+    if status_order.get(new_status, -1) <= status_order.get(current, 0):
+        conn.close()
+        return jsonify({'success': False, 'error': 'Cannot move backward'}), 400
+
+    conn.execute(
+        "UPDATE measurements SET status=?, "
+        "trial_done_date=COALESCE(?, trial_done_date), "
+        "actual_delivery_date=COALESCE(?, actual_delivery_date) WHERE id=?",
+        (new_status, trial_done_date, actual_delivery_date, measurement_id)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/calendar')
+def calendar_view():
+    month_str = request.args.get('month', datetime.now().strftime('%Y-%m'))
+    try:
+        year, month = map(int, month_str.split('-'))
+        if not (1 <= month <= 12):
+            raise ValueError
+    except Exception:
+        year, month = datetime.now().year, datetime.now().month
+
+    _, days_in_month = cal_module.monthrange(year, month)
+    month_start = f"{year:04d}-{month:02d}-01"
+    month_end   = f"{year:04d}-{month:02d}-{days_in_month:02d}"
+    today_str   = datetime.now().strftime('%Y-%m-%d')
+
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT m.id, m.customer_id, m.garment_type, m.status,
+               m.trial_date, m.delivery_date, m.trial_done_date, m.actual_delivery_date,
+               c.name AS customer_name, c.mobile AS customer_mobile
+        FROM measurements m
+        JOIN customers c ON m.customer_id = c.id
+        WHERE (m.status IS NULL OR m.status != 'delivered')
+        AND (
+            (m.trial_date    BETWEEN ? AND ?)
+            OR (m.delivery_date BETWEEN ? AND ?)
+        )
+        ORDER BY m.trial_date, m.delivery_date
+    """, (month_start, month_end, month_start, month_end)).fetchall()
+    conn.close()
+
+    from collections import defaultdict
+    day_orders = defaultdict(list)
+
+    for row in rows:
+        status = row['status'] or 'pending'
+        base = {
+            'id':            row['id'],
+            'customer_id':   row['customer_id'],
+            'customer_name': row['customer_name'],
+            'customer_mobile': row['customer_mobile'] or '',
+            'garment_type':  row['garment_type'],
+            'status':        status,
+            'slip_no':       f"#{row['id']:04d}",
+            'trial_date':    row['trial_date'],
+            'delivery_date': row['delivery_date'],
+        }
+        if row['trial_date'] and month_start <= row['trial_date'] <= month_end:
+            o = dict(base)
+            o['event_type'] = 'trial'
+            o['overdue'] = row['trial_date'] < today_str
+            day_orders[row['trial_date']].append(o)
+        if row['delivery_date'] and month_start <= row['delivery_date'] <= month_end:
+            o = dict(base)
+            o['event_type'] = 'delivery'
+            o['overdue'] = row['delivery_date'] < today_str
+            day_orders[row['delivery_date']].append(o)
+
+    # Build calendar weeks (each day is a date object or None for out-of-month)
+    first = date_obj(year, month, 1)
+    last  = date_obj(year, month, days_in_month)
+    start = first - timedelta(days=first.weekday())
+    end   = last  + timedelta(days=(6 - last.weekday()))
+
+    weeks = []
+    cur = start
+    while cur <= end:
+        week = []
+        for _ in range(7):
+            week.append(cur if cur.month == month else None)
+            cur += timedelta(days=1)
+        weeks.append(week)
+
+    # Prev / next month
+    if month == 1:
+        prev_month = f"{year-1:04d}-12"
+    else:
+        prev_month = f"{year:04d}-{month-1:02d}"
+    if month == 12:
+        next_month = f"{year+1:04d}-01"
+    else:
+        next_month = f"{year:04d}-{month+1:02d}"
+
+    month_name = datetime(year, month, 1).strftime('%B %Y')
+
+    return render_template('calendar.html',
+        shop=SHOP_NAME,
+        year=year, month=month,
+        month_name=month_name,
+        weeks=weeks,
+        day_orders=dict(day_orders),
+        prev_month=prev_month,
+        next_month=next_month,
+        today=today_str,
+    )
 
 
 @app.after_request

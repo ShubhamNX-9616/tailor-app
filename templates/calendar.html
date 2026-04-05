@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block title %}Delivery Calendar – {{ shop }}{% endblock %}
+
+{% block head %}
+<style>
+  @media (max-width: 768px) {
+    .cal-cell { min-height: 60px; padding: 4px; }
+    .cal-badge { font-size: .6rem; padding: 1px 4px; }
+    .cal-day-num { width: 22px; height: 22px; font-size: .75rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Page header -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <h4 class="fw-bold mb-0"><i class="bi bi-calendar3 me-2 text-primary"></i>Delivery Calendar</h4>
+  <div class="d-flex gap-2">
+    <a href="/calendar?month={{ prev_month }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-chevron-left"></i> Prev
+    </a>
+    <a href="/calendar" class="btn btn-outline-primary btn-sm">Today</a>
+    <a href="/calendar?month={{ next_month }}" class="btn btn-outline-secondary btn-sm">
+      Next <i class="bi bi-chevron-right"></i>
+    </a>
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="d-flex gap-3 mb-3 flex-wrap">
+  <span class="cal-badge trial d-inline-block">🟠 Trial Date</span>
+  <span class="cal-badge delivery d-inline-block">🔴 Delivery Date</span>
+  <span class="cal-badge overdue d-inline-block">⚠️ Overdue</span>
+</div>
+
+<!-- Calendar card -->
+<div class="mb-4">
+  <div class="cal-header d-flex justify-content-between align-items-center">
+    <h5 class="fw-bold mb-0">{{ month_name }}</h5>
+    <span class="badge" style="background:rgba(255,255,255,.2);font-size:.8rem;">
+      {{ day_orders|length }} day{{ 's' if day_orders|length != 1 }} with orders
+    </span>
+  </div>
+
+  <div class="cal-grid">
+    <!-- Day names -->
+    <div class="cal-day-names">
+      {% for d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+        <div class="cal-day-name {% if loop.index >= 6 %}weekend{% endif %}">{{ d }}</div>
+      {% endfor %}
+    </div>
+
+    <!-- Weeks -->
+    <div class="cal-weeks">
+      {% for week in weeks %}
+      <div class="cal-week">
+        {% for day in week %}
+          {% if day is none %}
+            <div class="cal-cell empty"></div>
+          {% else %}
+            {% set day_str = day.strftime('%Y-%m-%d') %}
+            {% set orders = day_orders.get(day_str, []) %}
+            {% set has_overdue = orders | selectattr('overdue') | list | length > 0 %}
+            {% set is_today = day_str == today %}
+            <div class="cal-cell {% if is_today %}today{% elif has_overdue %}overdue-day{% endif %}"
+                 onclick="showDayOrders('{{ day_str }}', '{{ day.strftime('%d %b %Y') }}')">
+              <div class="cal-day-num">{{ day.day }}</div>
+              {% for o in orders %}
+                <span class="cal-badge {% if o.overdue %}overdue{% elif o.event_type == 'trial' %}trial{% else %}delivery{% endif %}"
+                      title="{{ o.customer_name }} — {{ o.garment_type }}">
+                  {{ '🟠' if o.event_type == 'trial' else '🔴' }}
+                  {{ o.customer_name.split()[0] }} · {{ o.garment_type }}
+                </span>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- ── Day Orders Modal ──────────────────────────── -->
+<div class="modal fade" id="dayModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content" style="border-radius:14px;border:none;">
+      <div class="modal-header" style="background:linear-gradient(135deg,#1a1a2e,#1e3a5f);color:#fff;border-radius:14px 14px 0 0;">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-calendar-event me-2"></i><span id="modalDateTitle"></span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0" id="modalBody" style="max-height:70vh;overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Trial Confirm Modal ───────────────────────── -->
+<div class="modal fade" id="calTrialModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:12px;border:none;">
+      <div class="modal-header" style="background:#ffedd5;border-radius:12px 12px 0 0;">
+        <h5 class="modal-title fw-bold">🟠 Mark Trial Ready</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">Trial completed for <strong id="calTrialCustomer"></strong>?</p>
+        <label class="form-label fw-semibold small">Trial Date</label>
+        <input type="date" id="calTrialDate" class="form-control">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-warning fw-bold" onclick="calConfirmTrial()">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Deliver Confirm Modal ─────────────────────── -->
+<div class="modal fade" id="calDeliverModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:12px;border:none;">
+      <div class="modal-header" style="background:#d1fae5;border-radius:12px 12px 0 0;">
+        <h5 class="modal-title fw-bold">✅ Mark as Delivered</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-1">Customer: <strong id="calDeliverCustomer"></strong></p>
+        <p class="mb-3">Garment: <strong id="calDeliverGarment" class="text-capitalize"></strong></p>
+        <label class="form-label fw-semibold small">Actual Delivery Date</label>
+        <input type="date" id="calDeliverDate" class="form-control">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-success fw-bold" onclick="calConfirmDeliver()">Confirm Delivery</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dayOrders = {{ day_orders | tojson }};
+let calPendingMid = null;
+
+const GARMENT_EMOJI = {
+  shirt: '👕', pant: '👖', kurta: '🧥',
+  suit: '🤵', jacket: '🧥', pyjama: '🩲'
+};
+
+const STATUS_LABEL = {
+  pending: '🟡 Pending', in_progress: '🔵 In Progress',
+  trial_ready: '🟠 Trial Ready', delivered: '🟢 Delivered',
+};
+const STATUS_BADGE_STYLE = {
+  pending:     'background:#fef3c7;color:#92400e',
+  in_progress: 'background:#dbeafe;color:#1e40af',
+  trial_ready: 'background:#ffedd5;color:#9a3412',
+  delivered:   'background:#d1fae5;color:#065f46',
+};
+
+function showDayOrders(dateStr, label) {
+  document.getElementById('modalDateTitle').textContent = '📅 Orders for ' + label;
+  const orders = dayOrders[dateStr] || [];
+  const body = document.getElementById('modalBody');
+
+  if (orders.length === 0) {
+    body.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-calendar-check display-5 d-block mb-2"></i>No orders on this day.</div>';
+  } else {
+    body.innerHTML = orders.map(o => buildOrderCard(o)).join('');
+  }
+  new bootstrap.Modal(document.getElementById('dayModal')).show();
+}
+
+function buildOrderCard(o) {
+  const emoji = GARMENT_EMOJI[o.garment_type] || '🧵';
+  const st = o.status || 'pending';
+  const stBadge = `<span style="font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:20px;${STATUS_BADGE_STYLE[st]}">${STATUS_LABEL[st]}</span>`;
+  const eventBadge = o.event_type === 'trial'
+    ? '<span class="cal-badge trial d-inline-block me-1">🟠 Trial</span>'
+    : '<span class="cal-badge delivery d-inline-block me-1">🔴 Delivery</span>';
+  const overdueBadge = o.overdue ? '<span class="cal-badge overdue d-inline-block">⚠️ Overdue</span>' : '';
+
+  let actionBtn = '';
+  if (st === 'pending') {
+    actionBtn = `<button class="btn btn-sm btn-outline-primary" onclick="calStartWork(${o.id}, event)">▶ Start Work</button>`;
+  } else if (st === 'in_progress') {
+    actionBtn = `<button class="btn btn-sm btn-warning" onclick="calOpenTrial(${o.id}, '${escHtml(o.customer_name)}', '${o.garment_type}', event)">🟠 Mark Trial Ready</button>`;
+  } else if (st === 'trial_ready') {
+    actionBtn = `<button class="btn btn-sm btn-success" onclick="calOpenDeliver(${o.id}, '${escHtml(o.customer_name)}', '${o.garment_type}', event)">✅ Mark as Delivered</button>`;
+  }
+
+  const trialLine  = o.trial_date    ? `<span class="text-muted small"><i class="bi bi-calendar-check me-1"></i>Trial: <strong>${o.trial_date}</strong></span>` : '';
+  const delivLine  = o.delivery_date ? `<span class="text-muted small"><i class="bi bi-truck me-1"></i>Delivery: <strong>${o.delivery_date}</strong></span>` : '';
+
+  return `
+  <div class="p-3 border-bottom" id="cal-order-${o.id}">
+    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+      <div>
+        <div class="fw-bold">${emoji} ${o.garment_type.charAt(0).toUpperCase()+o.garment_type.slice(1)} — ${escHtml(o.customer_name)}</div>
+        <div class="d-flex align-items-center gap-2 mt-1 flex-wrap">
+          ${stBadge}
+          ${eventBadge}
+          ${overdueBadge}
+        </div>
+        <div class="mt-1 d-flex gap-3 flex-wrap">
+          <span class="text-muted small"><i class="bi bi-receipt me-1"></i>${o.slip_no}</span>
+          <span class="text-muted small"><i class="bi bi-phone me-1"></i>${o.customer_mobile || '—'}</span>
+        </div>
+        <div class="mt-1 d-flex gap-3 flex-wrap">${trialLine} ${delivLine}</div>
+      </div>
+      <div>${actionBtn}</div>
+    </div>
+  </div>`;
+}
+
+function escHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function calStartWork(id, e) {
+  e.stopPropagation();
+  if (!confirm('Start work on this order?')) return;
+  calDoUpdate(id, 'in_progress', {});
+}
+
+function calOpenTrial(id, name, garment, e) {
+  e.stopPropagation();
+  calPendingMid = id;
+  document.getElementById('calTrialCustomer').textContent = name + ' — ' + garment;
+  document.getElementById('calTrialDate').value = new Date().toISOString().split('T')[0];
+  bootstrap.Modal.getInstance(document.getElementById('dayModal'))?.hide();
+  setTimeout(() => new bootstrap.Modal(document.getElementById('calTrialModal')).show(), 300);
+}
+
+function calOpenDeliver(id, name, garment, e) {
+  e.stopPropagation();
+  calPendingMid = id;
+  document.getElementById('calDeliverCustomer').textContent = name;
+  document.getElementById('calDeliverGarment').textContent  = garment;
+  document.getElementById('calDeliverDate').value = new Date().toISOString().split('T')[0];
+  bootstrap.Modal.getInstance(document.getElementById('dayModal'))?.hide();
+  setTimeout(() => new bootstrap.Modal(document.getElementById('calDeliverModal')).show(), 300);
+}
+
+function calConfirmTrial() {
+  calDoUpdate(calPendingMid, 'trial_ready', { trial_done_date: document.getElementById('calTrialDate').value });
+}
+function calConfirmDeliver() {
+  calDoUpdate(calPendingMid, 'delivered', { actual_delivery_date: document.getElementById('calDeliverDate').value });
+}
+
+async function calDoUpdate(id, newStatus, extra) {
+  const r = await fetch(`/measurement/${id}/update-status`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({new_status: newStatus, ...extra})
+  });
+  const data = await r.json();
+  if (!data.success) { alert('Error: ' + (data.error || 'unknown')); return; }
+
+  // Close all modals and reload to refresh calendar
+  document.querySelectorAll('.modal.show').forEach(el => {
+    bootstrap.Modal.getInstance(el)?.hide();
+  });
+  setTimeout(() => location.reload(), 350);
+}
+</script>
+{% endblock %}

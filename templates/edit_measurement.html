@@ -60,18 +60,19 @@
                        value="{{ existing.get('No of Shirts', '') }}" min="1" inputmode="numeric">
               </div>
 
-              <!-- Shirt Type dropdown -->
-              <div class="col-md-4 col-sm-6">
+              <!-- Shirt Type image selector -->
+              <div class="col-12">
                 <label class="form-label fw-semibold small">Shirt Type</label>
-                <select name="shirt_type" class="form-select">
-                  <option value="">— Select —</option>
-                  {% for opt in ['Manela','Apple-cut','Manela-sidecut'] %}
-                    <option value="{{ opt }}"
-                      {% if existing.get('Shirt Type') == opt %}selected{% endif %}>
-                      {{ opt }}
-                    </option>
+                <input type="hidden" name="shirt_type" id="edit_shirt_type" value="{{ existing.get('Shirt Type', '') }}">
+                <div class="d-flex gap-2 flex-wrap">
+                  {% for lbl, img in [('Manela','shirt/shirt_types/Manela_shirt_type.jpeg'),('Apple-cut','shirt/shirt_types/apple_cut_shirt_type.png'),('Manela-sidecut','shirt/shirt_types/Manela_sidecut_shirt_type.png')] %}
+                  <div class="img-selector img-selector-tall{% if existing.get('Shirt Type') == lbl %} selected{% endif %}"
+                       onclick="imgSelect(this,'edit_shirt_type')" data-value="{{ lbl }}">
+                    <img src="{{ url_for('static', filename=img) }}" alt="{{ lbl }}">
+                    <div>{{ lbl }}</div>
+                  </div>
                   {% endfor %}
-                </select>
+                </div>
               </div>
 
               <!-- Regular inch fields -->
@@ -151,10 +152,10 @@
                 <label class="form-label fw-semibold small">Collar Type</label>
                 <input type="hidden" name="collar_type" id="edit_collar_type" value="{{ existing.get('Collar Type', '') }}">
                 <div class="d-flex gap-2 flex-wrap">
-                  {% for lbl in ['Classic','Mandarin','Spread','Button-Down'] %}
+                  {% for lbl, img in [('Button Down','shirt/collar_types/button_down_collar.png'),('Club','shirt/collar_types/club_collar.png'),('Spread','shirt/collar_types/spread_collar.png'),('Point','shirt/collar_types/point_collar.png')] %}
                   <div class="img-selector{% if existing.get('Collar Type') == lbl %} selected{% endif %}"
                        onclick="imgSelect(this,'edit_collar_type')" data-value="{{ lbl }}">
-                    <img src="https://placehold.co/80x60" alt="{{ lbl }}">
+                    <img src="{{ url_for('static', filename=img) }}" alt="{{ lbl }}">
                     <div>{{ lbl }}</div>
                   </div>
                   {% endfor %}
@@ -166,10 +167,10 @@
                 <label class="form-label fw-semibold small">Cuff Type</label>
                 <input type="hidden" name="cuff_type" id="edit_cuff_type" value="{{ existing.get('Cuff Type', '') }}">
                 <div class="d-flex gap-2 flex-wrap">
-                  {% for lbl in ['Single','Double','French','Barrel'] %}
+                  {% for lbl, img in [('Angled','shirt/cuff_types/angled_cuff.png'),('Rounded','shirt/cuff_types/rounded_cuff.png'),('Square','shirt/cuff_types/square_cuff.png'),('French','shirt/cuff_types/french_cuff.png'),('Rounded French','shirt/cuff_types/rounded_french_cuff.png'),('Double French','shirt/cuff_types/double_french_cuff.png'),('Double Rounded French','shirt/cuff_types/double_rounded_french_cuff.png')] %}
                   <div class="img-selector{% if existing.get('Cuff Type') == lbl %} selected{% endif %}"
                        onclick="imgSelect(this,'edit_cuff_type')" data-value="{{ lbl }}">
-                    <img src="https://placehold.co/80x60" alt="{{ lbl }}">
+                    <img src="{{ url_for('static', filename=img) }}" alt="{{ lbl }}">
                     <div>{{ lbl }}</div>
                   </div>
                   {% endfor %}
@@ -268,14 +269,19 @@
                        value="{{ existing.get('No of Kurtas', '') }}" min="1" inputmode="numeric">
               </div>
 
-              <div class="col-md-4 col-sm-6">
+              <!-- Kurta Type image selector -->
+              <div class="col-12">
                 <label class="form-label fw-semibold small">Kurta Type</label>
-                <select name="kurta_type" class="form-select">
-                  <option value="">— Select —</option>
-                  {% for opt in ['Manela','Apple-cut','Manela-sidecut'] %}
-                  <option value="{{ opt }}" {% if existing.get('Kurta Type') == opt %}selected{% endif %}>{{ opt }}</option>
+                <input type="hidden" name="kurta_type" id="edit_kurta_type" value="{{ existing.get('Kurta Type', '') }}">
+                <div class="d-flex gap-2 flex-wrap">
+                  {% for lbl, img in [('Pathani','kurta/kurta_types/pathani_kurta_type.png'),('Front Open','kurta/kurta_types/front_open_kurta_type.png'),('Short','kurta/kurta_types/short_kurta_type.png'),('Normal','kurta/kurta_types/normal_kurta_type.png')] %}
+                  <div class="img-selector img-selector-tall{% if existing.get('Kurta Type') == lbl %} selected{% endif %}"
+                       onclick="imgSelect(this,'edit_kurta_type')" data-value="{{ lbl }}">
+                    <img src="{{ url_for('static', filename=img) }}" alt="{{ lbl }}">
+                    <div>{{ lbl }}</div>
+                  </div>
                   {% endfor %}
-                </select>
+                </div>
               </div>
 
               {% for field in ['Length','Chest','Stomach','Seat','Shoulder','Sleeve Length','Arm Hole','Elbow'] %}
@@ -297,14 +303,18 @@
                   <span class="input-group-text">"</span>
                 </div>
               </div>
-              <div class="col-md-4 col-sm-6">
+              <div class="col-12">
                 <label class="form-label fw-semibold small">Cuff Style</label>
-                <select name="cuff_style" class="form-select">
-                  <option value="">— Select —</option>
-                  {% for opt in ['Round','Cuff'] %}
-                  <option value="{{ opt }}" {% if existing.get('Cuff Style') == opt %}selected{% endif %}>{{ opt }}</option>
+                <input type="hidden" name="cuff_style" id="edit_kurta_cuff_style" value="{{ existing.get('Cuff Style', '') }}">
+                <div class="d-flex gap-2 flex-wrap">
+                  {% for lbl, img in [('Round','kurta/cuff_types/round_no_cuff.png'),('Cuff','kurta/cuff_types/cuff.png')] %}
+                  <div class="img-selector{% if existing.get('Cuff Style') == lbl %} selected{% endif %}"
+                       onclick="imgSelect(this,'edit_kurta_cuff_style')" data-value="{{ lbl }}">
+                    <img src="{{ url_for('static', filename=img) }}" alt="{{ lbl }}" style="width:80px;height:60px;object-fit:cover;">
+                    <div>{{ lbl }}</div>
+                  </div>
                   {% endfor %}
-                </select>
+                </div>
               </div>
 
               {% for field in ['Neck','Collar','X-Chest'] %}
@@ -358,32 +368,31 @@
                 </select>
               </div>
 
+              <div class="col-md-4 col-sm-6">
+                <label class="form-label fw-semibold small">Astar</label>
+                <select name="astar" class="form-select">
+                  <option value="">— Select —</option>
+                  {% for opt in ['Yes','No'] %}
+                  <option value="{{ opt }}" {% if existing.get('Astar') == opt %}selected{% endif %}>{{ opt }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
               <div class="col-12 mt-1">
                 <label class="form-label fw-semibold small">Collar Type</label>
                 <input type="hidden" name="collar_type" id="edit_kurta_collar_type" value="{{ existing.get('Collar Type', '') }}">
                 <div class="d-flex gap-2 flex-wrap">
-                  {% for lbl in ['Classic','Mandarin','Spread','Button-Down'] %}
+                  {% for lbl, img in [('Stand','kurta/collar_types/stand_collar.png')] %}
                   <div class="img-selector{% if existing.get('Collar Type') == lbl %} selected{% endif %}"
                        onclick="imgSelect(this,'edit_kurta_collar_type')" data-value="{{ lbl }}">
-                    <img src="https://placehold.co/80x60" alt="{{ lbl }}">
+                    <img src="{{ url_for('static', filename=img) }}" alt="{{ lbl }}">
                     <div>{{ lbl }}</div>
                   </div>
                   {% endfor %}
                 </div>
               </div>
 
-              <div class="col-12 mt-1">
-                <label class="form-label fw-semibold small">Cuff Type</label>
-                <input type="hidden" name="cuff_type" id="edit_kurta_cuff_type" value="{{ existing.get('Cuff Type', '') }}">
-                <div class="d-flex gap-2 flex-wrap">
-                  {% for lbl in ['Single','Double','French','Barrel'] %}
-                  <div class="img-selector{% if existing.get('Cuff Type') == lbl %} selected{% endif %}"
-                       onclick="imgSelect(this,'edit_kurta_cuff_type')" data-value="{{ lbl }}">
-                    <img src="https://placehold.co/80x60" alt="{{ lbl }}">
-                    <div>{{ lbl }}</div>
-                  </div>
-                  {% endfor %}
-                </div>
+              <div class="d-none">
               </div>
 
             </div>

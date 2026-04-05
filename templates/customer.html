@@ -4,44 +4,47 @@
 {% block content %}
 
 <!-- Customer header -->
-<div class="card shadow-sm mb-4">
-  <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>
-      <h3 class="mb-1 fw-bold">{{ customer.name }}</h3>
-      <span class="text-muted"><i class="bi bi-phone me-1"></i>{{ customer.mobile or '—' }}</span>
+<div class="customer-header-card d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+  <div>
+    <div class="d-flex align-items-center gap-3 mb-1">
+      <div class="customer-avatar" style="width:52px;height:52px;font-size:1.3rem;">{{ customer.name[0] }}</div>
+      <div>
+        <h3 class="mb-0">{{ customer.name }}</h3>
+        <div class="mobile"><i class="bi bi-phone me-1"></i>{{ customer.mobile or '—' }}</div>
+      </div>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
-      <a href="/customer/{{ customer.id }}/add-measurement" class="btn btn-success">
-        <i class="bi bi-plus-circle-fill me-1"></i>Add Measurement
-      </a>
-      <a href="/customer/{{ customer.id }}/receipt" class="btn btn-warning">
-        <i class="bi bi-receipt me-1"></i>Generate Receipt
-      </a>
-      <a href="/customer/{{ customer.id }}/edit" class="btn btn-outline-primary">
-        <i class="bi bi-pencil me-1"></i>Edit
-      </a>
-      <form method="post" action="/customer/{{ customer.id }}/delete"
-            onsubmit="return confirm('Delete {{ customer.name }} and ALL their measurements? This cannot be undone.')">
-        <button class="btn btn-outline-danger">
-          <i class="bi bi-trash me-1"></i>Delete
-        </button>
-      </form>
-    </div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="/customer/{{ customer.id }}/add-measurement" class="btn btn-success">
+      <i class="bi bi-plus-circle-fill me-1"></i>Add Measurement
+    </a>
+    <a href="/customer/{{ customer.id }}/receipt" class="btn btn-warning">
+      <i class="bi bi-receipt me-1"></i>Generate Receipt
+    </a>
+    <a href="/customer/{{ customer.id }}/edit" class="btn btn-outline-light">
+      <i class="bi bi-pencil me-1"></i>Edit
+    </a>
+    <form method="post" action="/customer/{{ customer.id }}/delete"
+          onsubmit="return confirm('Delete {{ customer.name }} and ALL their measurements? This cannot be undone.')">
+      <button class="btn btn-outline-light">
+        <i class="bi bi-trash me-1"></i>Delete
+      </button>
+    </form>
   </div>
 </div>
 
 <!-- Measurements history -->
-<h5 class="text-muted mb-3">
-  <i class="bi bi-clock-history me-2"></i>Measurement History
-  <span class="badge bg-secondary ms-1">{{ measurements|length }}</span>
-</h5>
+<div class="section-header">
+  <i class="bi bi-rulers"></i>Measurement History
+  <span class="badge bg-secondary">{{ measurements|length }}</span>
+</div>
 
 {% if measurements %}
   <div class="row g-3">
     {% for m in measurements %}
       {% set garment = m.garment_type %}
       <div class="col-md-6">
-        <div class="card shadow-sm h-100 garment-card garment-{{ garment }}">
+        <div class="card shadow-sm h-100 garment-card garment-{{ garment }}" id="mcard-{{ m.id }}">
           <div class="card-header d-flex justify-content-between align-items-center">
             <span class="fw-bold text-capitalize">
               <i class="bi bi-tag-fill me-1"></i>{{ garment }}
@@ -52,11 +55,18 @@
                      alt="Fabric" style="height:32px;width:32px;object-fit:cover;border-radius:4px;border:1px solid #dee2e6;"
                      data-bs-toggle="tooltip" title="Fabric photo attached">
               {% endif %}
+              {% set st = m.status or 'pending' %}
+              <span class="status-badge status-{{ st }}">
+                {% if st == 'pending' %}🟡 Pending
+                {% elif st == 'in_progress' %}🔵 In Progress
+                {% elif st == 'trial_ready' %}🟠 Trial Ready
+                {% else %}🟢 Delivered{% endif %}
+              </span>
               <span class="text-muted small">{{ m.order_date }}</span>
             </div>
           </div>
           <div class="card-body pb-2">
-            {% set non_inch = ['Shirt Type','No of Shirts','Front-patti','Sample Shirt','Collar Type','Cuff Type','No of Pants','Thighs Type','Plates','Belt','Button','Sample Pant','No of Kurtas','Kurta Type','Cuff Style','Pockets','Sample Kurta','No of Suits','No of Jackets','No of Pyjamas'] %}
+            {% set non_inch = ['Shirt Type','No of Shirts','Front-patti','Sample Shirt','Collar Type','Cuff Type','No of Pants','Thighs Type','Plates','Belt','Button','Sample Pant','No of Kurtas','Kurta Type','Cuff Style','Pockets','Astar','Sample Kurta','No of Suits','No of Jackets','No of Pyjamas'] %}
             <div class="row g-1 mb-2">
               {% for field, value in m.measurements.items() %}
                 {% if value and field not in ['Front 1','Front 2','Front 3','Back 1','Back 2','Back 3'] %}
@@ -111,43 +121,76 @@
               </div>
             {% endif %}
           </div>
-          <div class="card-footer bg-transparent d-flex gap-2">
-            <a href="/measurement/{{ m.id }}/print"
-               class="btn btn-sm btn-outline-primary flex-fill">
-              <i class="bi bi-printer me-1"></i>Print
-            </a>
-            <a href="/measurement/{{ m.id }}/edit"
-               class="btn btn-sm btn-outline-secondary">
-              <i class="bi bi-pencil"></i>
-            </a>
-            <form method="post" action="/measurement/{{ m.id }}/delete"
-                  onsubmit="return confirm('Delete this measurement?')">
-              <button class="btn btn-sm btn-outline-danger">
-                <i class="bi bi-trash"></i>
-              </button>
-            </form>
+          <div class="card-footer bg-transparent">
+            <!-- Status action button -->
+            {% set st = m.status or 'pending' %}
+            {% if st != 'delivered' %}
+            <div class="mb-2" id="action-{{ m.id }}"
+                 data-customer="{{ customer.name | e }}"
+                 data-garment="{{ m.garment_type }}">
+              {% if st == 'pending' %}
+                <button class="btn btn-sm btn-outline-primary w-100"
+                        onclick="openStartWork({{ m.id }}, this)">
+                  ▶ Start Work
+                </button>
+              {% elif st == 'in_progress' %}
+                <button class="btn btn-sm btn-warning w-100"
+                        onclick="openTrialModal({{ m.id }})">
+                  🟠 Mark Trial Ready
+                </button>
+              {% elif st == 'trial_ready' %}
+                <button class="btn btn-sm btn-success w-100"
+                        onclick="openDeliverModal({{ m.id }})">
+                  ✅ Mark as Delivered
+                </button>
+              {% endif %}
+            </div>
+            {% else %}
+            <div class="mb-2 text-center">
+              <span class="badge bg-success px-3 py-2">✅ Delivered</span>
+            </div>
+            {% endif %}
+            <!-- Standard actions -->
+            <div class="d-flex gap-2">
+              <a href="/measurement/{{ m.id }}/print"
+                 class="btn btn-sm btn-outline-primary flex-fill">
+                <i class="bi bi-printer me-1"></i>Print
+              </a>
+              <a href="/measurement/{{ m.id }}/edit"
+                 class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="post" action="/measurement/{{ m.id }}/delete"
+                    onsubmit="return confirm('Delete this measurement?')">
+                <button class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </div>
     {% endfor %}
   </div>
 {% else %}
-  <div class="text-center py-5 text-muted border rounded">
-    <i class="bi bi-rulers display-4 d-block mb-2"></i>
-    No measurements yet.
-    <a href="/customer/{{ customer.id }}/add-measurement">Add the first one</a>
+  <div class="empty-state">
+    <i class="bi bi-rulers display-4 d-block mb-3"></i>
+    No measurements yet.<br>
+    <a href="/customer/{{ customer.id }}/add-measurement" class="btn btn-success mt-3">
+      <i class="bi bi-plus-circle-fill me-1"></i>Add First Measurement
+    </a>
   </div>
 {% endif %}
 
 <!-- Receipt History -->
 <div class="mt-5">
-  <h5 class="text-muted mb-3">
-    <i class="bi bi-receipt me-2"></i>Receipt History
-    <span class="badge bg-secondary ms-1">{{ receipts|length }}</span>
-  </h5>
+  <div class="section-header">
+    <i class="bi bi-receipt"></i>Receipt History
+    <span class="badge bg-secondary">{{ receipts|length }}</span>
+  </div>
 
   {% if receipts %}
-  <div class="card shadow-sm">
+  <div class="card receipt-table-card">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
@@ -188,12 +231,141 @@
     </div>
   </div>
   {% else %}
-  <div class="text-center py-4 text-muted border rounded">
-    <i class="bi bi-receipt display-5 d-block mb-2"></i>
-    No receipts yet.
-    <a href="/customer/{{ customer.id }}/receipt">Generate one</a>
+  <div class="empty-state">
+    <i class="bi bi-receipt display-4 d-block mb-3"></i>
+    No receipts yet.<br>
+    <a href="/customer/{{ customer.id }}/receipt" class="btn btn-warning mt-3">
+      <i class="bi bi-receipt me-1"></i>Generate Receipt
+    </a>
   </div>
   {% endif %}
 </div>
 
+<!-- ── Trial Ready Modal ───────────────────────────── -->
+<div class="modal fade" id="trialModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:12px;border:none;">
+      <div class="modal-header" style="background:#ffedd5;border-radius:12px 12px 0 0;">
+        <h5 class="modal-title fw-bold">🟠 Mark Trial Ready</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">Trial completed for <strong id="trialCustomer"></strong>?</p>
+        <label class="form-label fw-semibold small">Trial Date</label>
+        <input type="date" id="trialDate" class="form-control">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-warning fw-bold" onclick="confirmTrial()">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delivered Modal ─────────────────────────────── -->
+<div class="modal fade" id="deliverModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:12px;border:none;">
+      <div class="modal-header" style="background:#d1fae5;border-radius:12px 12px 0 0;">
+        <h5 class="modal-title fw-bold">✅ Mark as Delivered</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-1">Customer: <strong id="deliverCustomer"></strong></p>
+        <p class="mb-3">Garment: <strong id="deliverGarment" class="text-capitalize"></strong></p>
+        <label class="form-label fw-semibold small">Actual Delivery Date</label>
+        <input type="date" id="deliverDate" class="form-control">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-success fw-bold" onclick="confirmDeliver()">Confirm Delivery</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const STATUS_LABEL = {
+  pending:     '🟡 Pending',
+  in_progress: '🔵 In Progress',
+  trial_ready: '🟠 Trial Ready',
+  delivered:   '🟢 Delivered',
+};
+const STATUS_CLASS = {
+  pending:     'status-pending',
+  in_progress: 'status-in_progress',
+  trial_ready: 'status-trial_ready',
+  delivered:   'status-delivered',
+};
+
+let pendingMid = null;
+
+function openStartWork(id) {
+  const div = document.getElementById(`action-${id}`);
+  const name = div.dataset.customer, garment = div.dataset.garment;
+  if (!confirm(`Start work on ${garment} for ${name}?`)) return;
+  doStatusUpdate(id, 'in_progress', {});
+}
+
+function openTrialModal(id) {
+  const div = document.getElementById(`action-${id}`);
+  pendingMid = id;
+  document.getElementById('trialCustomer').textContent =
+    div.dataset.customer + ' — ' + div.dataset.garment;
+  document.getElementById('trialDate').value = new Date().toISOString().split('T')[0];
+  new bootstrap.Modal(document.getElementById('trialModal')).show();
+}
+
+function openDeliverModal(id) {
+  const div = document.getElementById(`action-${id}`);
+  pendingMid = id;
+  document.getElementById('deliverCustomer').textContent = div.dataset.customer;
+  document.getElementById('deliverGarment').textContent  = div.dataset.garment;
+  document.getElementById('deliverDate').value = new Date().toISOString().split('T')[0];
+  new bootstrap.Modal(document.getElementById('deliverModal')).show();
+}
+
+function confirmTrial() {
+  doStatusUpdate(pendingMid, 'trial_ready', { trial_done_date: document.getElementById('trialDate').value });
+}
+function confirmDeliver() {
+  doStatusUpdate(pendingMid, 'delivered', { actual_delivery_date: document.getElementById('deliverDate').value });
+}
+
+async function doStatusUpdate(id, newStatus, extra) {
+  const r = await fetch(`/measurement/${id}/update-status`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({new_status: newStatus, ...extra})
+  });
+  const data = await r.json();
+  if (!data.success) { alert('Error: ' + (data.error || 'unknown')); return; }
+
+  // Update status badge in card header
+  const card = document.getElementById(`mcard-${id}`);
+  const badge = card.querySelector('.status-badge');
+  badge.className = `status-badge ${STATUS_CLASS[newStatus]}`;
+  badge.textContent = STATUS_LABEL[newStatus];
+
+  // Update action area
+  const actionDiv = document.getElementById(`action-${id}`);
+  if (actionDiv) {
+    if (newStatus === 'delivered') {
+      actionDiv.outerHTML = `<div class="mb-2 text-center"><span class="badge bg-success px-3 py-2">✅ Delivered</span></div>`;
+    } else if (newStatus === 'in_progress') {
+      actionDiv.innerHTML = `<button class="btn btn-sm btn-warning w-100" onclick="openTrialModal(${id})">🟠 Mark Trial Ready</button>`;
+    } else if (newStatus === 'trial_ready') {
+      actionDiv.innerHTML = `<button class="btn btn-sm btn-success w-100" onclick="openDeliverModal(${id})">✅ Mark as Delivered</button>`;
+    }
+  }
+
+  // Close any open modals
+  document.querySelectorAll('.modal.show').forEach(el => {
+    bootstrap.Modal.getInstance(el)?.hide();
+  });
+}
+</script>
 {% endblock %}

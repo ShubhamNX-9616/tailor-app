@@ -209,7 +209,7 @@
 
     <!-- Measurements -->
     <div class="measurements-section">
-      {% set non_inch = ['Shirt Type','No of Shirts','Front-patti','Sample Shirt','Collar Type','Cuff Type','No of Pants','Thighs Type','Plates','Belt','Button','Sample Pant','No of Kurtas','Kurta Type','Cuff Style','Pockets','Sample Kurta','No of Suits','No of Jackets','No of Pyjamas'] %}
+      {% set non_inch = ['Shirt Type','No of Shirts','Front-patti','Sample Shirt','Collar Type','Cuff Type','No of Pants','Thighs Type','Plates','Belt','Button','Sample Pant','No of Kurtas','Kurta Type','Cuff Style','Pockets','Astar','Sample Kurta','No of Suits','No of Jackets','No of Pyjamas'] %}
       {% set skip_grid = ['Shirt Type','Kurta Type','Front 1','Front 2','Front 3','Front 4','Back 1','Back 2','Back 3','Collar Type','Cuff Type','Sample Shirt','Sample Kurta'] %}
       <h3>Measurements (inches)</h3>
       <div class="measure-grid">
@@ -290,6 +290,28 @@
         <strong>Notes:</strong> {{ measurement.notes }}
       </div>
     {% endif %}
+
+    <!-- Status -->
+    {% set st = measurement.status or 'pending' %}
+    <div style="margin:0 24px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <span style="font-size:.7rem;text-transform:uppercase;color:#9ca3af;letter-spacing:.5px;">Status</span>
+      <span style="font-size:.8rem;font-weight:700;padding:3px 12px;border-radius:20px;
+        {% if st == 'pending' %}background:#fef3c7;color:#92400e;
+        {% elif st == 'in_progress' %}background:#dbeafe;color:#1e40af;
+        {% elif st == 'trial_ready' %}background:#ffedd5;color:#9a3412;
+        {% else %}background:#d1fae5;color:#065f46;{% endif %}">
+        {% if st == 'pending' %}🟡 Pending
+        {% elif st == 'in_progress' %}🔵 In Progress
+        {% elif st == 'trial_ready' %}🟠 Trial Ready
+        {% else %}🟢 Delivered{% endif %}
+      </span>
+      {% if measurement.trial_done_date %}
+        <span style="font-size:.8rem;color:#6b7280;">Trial Done: <strong>{{ measurement.trial_done_date }}</strong></span>
+      {% endif %}
+      {% if measurement.actual_delivery_date %}
+        <span style="font-size:.8rem;color:#6b7280;">Delivered: <strong>{{ measurement.actual_delivery_date }}</strong></span>
+      {% endif %}
+    </div>
 
     <!-- Footer -->
     <div class="slip-footer">

@@ -12,16 +12,19 @@
   {% block head %}{% endblock %}
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-primary px-3 no-print">
+  <nav class="navbar navbar-expand-lg navbar-dark no-print">
     <a class="navbar-brand fw-bold" href="/">
       <i class="bi bi-scissors me-2"></i>{{ shop }}
     </a>
-    <div class="ms-auto">
-      <a href="/" class="btn btn-outline-light btn-sm me-2">
-        <i class="bi bi-house"></i> Home
+    <div class="ms-auto d-flex gap-2">
+      <a href="/" class="btn btn-outline-light btn-sm">
+        <i class="bi bi-house me-1"></i>Home
+      </a>
+      <a href="/calendar" class="btn btn-outline-light btn-sm">
+        <i class="bi bi-calendar3 me-1"></i>Calendar
       </a>
       <a href="/customer/add" class="btn btn-light btn-sm">
-        <i class="bi bi-person-plus"></i> New Customer
+        <i class="bi bi-person-plus me-1"></i>New Customer
       </a>
     </div>
   </nav>

@@ -3,66 +3,83 @@
 
 {% block content %}
 <div class="row justify-content-center">
-  <div class="col-lg-8">
+  <div class="col-lg-7">
 
-    <!-- Search bar -->
-    <form method="get" action="/" class="mb-4">
-      <div class="input-group input-group-lg shadow-sm">
-        <span class="input-group-text bg-white border-end-0">
-          <i class="bi bi-search text-muted"></i>
-        </span>
-        <input type="text" name="q" class="form-control border-start-0 ps-0"
-               placeholder="Search by name or mobile number…"
-               value="{{ query }}" autofocus>
-        <button class="btn btn-primary px-4" type="submit">Search</button>
-        {% if query %}
-          <a href="/" class="btn btn-outline-secondary">Clear</a>
-        {% endif %}
-      </div>
-    </form>
+    <!-- Overdue banner -->
+    {% if overdue_count %}
+    <div class="alert d-flex align-items-center gap-2 mb-3"
+         style="background:#fff3cd;border:1.5px solid #ffc107;border-radius:10px;color:#856404;">
+      <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+      <span>
+        <strong>⚠️ {{ overdue_count }} order{{ 's' if overdue_count != 1 }} overdue</strong> —
+        <a href="/calendar" class="fw-semibold" style="color:#856404;">View Calendar</a>
+      </span>
+    </div>
+    {% endif %}
+
+    <!-- Search card -->
+    <div class="search-wrapper">
+      <h4><i class="bi bi-scissors me-2 text-warning"></i>{{ shop }}</h4>
+      <p>Manage customers, measurements &amp; receipts</p>
+      <form method="get" action="/">
+        <div class="input-group">
+          <span class="input-group-text border-end-0 bg-white">
+            <i class="bi bi-search text-muted"></i>
+          </span>
+          <input type="text" name="q" class="form-control border-start-0 ps-0"
+                 placeholder="Search by name or mobile number…"
+                 value="{{ query }}" autofocus>
+          <button class="btn btn-primary px-4" type="submit">Search</button>
+          {% if query %}
+            <a href="/" class="btn btn-outline-secondary">Clear</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
 
     <!-- Results header -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <h5 class="mb-0 text-muted">
+      <div class="section-header mb-0">
+        <i class="bi bi-people-fill"></i>
         {% if query %}
           Results for "<strong>{{ query }}</strong>"
-          ({{ customers|length }} found)
+          <span class="badge bg-secondary">{{ customers|length }}</span>
         {% else %}
           Recent Customers
+          <span class="badge bg-secondary">{{ customers|length }}</span>
         {% endif %}
-      </h5>
+      </div>
       <a href="/customer/add" class="btn btn-success btn-sm">
-        <i class="bi bi-person-plus-fill me-1"></i>Add New Customer
+        <i class="bi bi-person-plus-fill me-1"></i>Add New
       </a>
     </div>
 
     <!-- Customer list -->
     {% if customers %}
-      <div class="list-group shadow-sm">
+      <div>
         {% for c in customers %}
-          <a href="/customer/{{ c.id }}"
-             class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3">
-            <div>
-              <div class="fw-semibold fs-6">{{ c.name }}</div>
-              <div class="text-muted small">
+          <a href="/customer/{{ c.id }}" class="customer-list-item">
+            <div class="customer-avatar">{{ c.name[0] }}</div>
+            <div class="flex-grow-1">
+              <div class="fw-semibold">{{ c.name }}</div>
+              <div class="text-muted">
                 <i class="bi bi-phone me-1"></i>{{ c.mobile or '—' }}
               </div>
             </div>
-            <div class="text-end">
-              <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill">
-                View <i class="bi bi-chevron-right"></i>
-              </span>
-            </div>
+            <i class="bi bi-chevron-right text-muted"></i>
           </a>
         {% endfor %}
       </div>
     {% else %}
-      <div class="text-center py-5 text-muted">
-        <i class="bi bi-person-x display-4 d-block mb-2"></i>
+      <div class="empty-state">
+        <i class="bi bi-person-x display-4 d-block mb-3"></i>
         {% if query %}
-          No customers found for "{{ query }}"
+          No customers found for "<strong>{{ query }}</strong>"
         {% else %}
-          No customers yet. Add your first customer!
+          No customers yet.<br>
+          <a href="/customer/add" class="btn btn-success mt-3">
+            <i class="bi bi-person-plus-fill me-1"></i>Add First Customer
+          </a>
         {% endif %}
       </div>
     {% endif %}
