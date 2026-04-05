@@ -44,20 +44,20 @@ pip3 install --user -r requirements.txt
 import sys
 import os
 
-path = '/home/YOUR_PYTHONANYWHERE_USERNAME/tailor-app'
+path = '/home/shubhamnxtailoring/tailor-app'
 if path not in sys.path:
     sys.path.append(path)
 
 from app import app as application
 ```
 
-Replace `YOUR_PYTHONANYWHERE_USERNAME` with your actual PythonAnywhere username.
+Replace `shubhamnxtailoring` with your actual PythonAnywhere username.
 
 ### 4. Set source code directory
 
 In the Web tab under **Code**:
-- Source code: `/home/YOUR_PYTHONANYWHERE_USERNAME/tailor-app`
-- Working directory: `/home/YOUR_PYTHONANYWHERE_USERNAME/tailor-app`
+- Source code: `/home/shubhamnxtailoring/tailor-app`
+- Working directory: `/home/shubhamnxtailoring/tailor-app`
 
 ### 5. Set static files
 
@@ -65,7 +65,7 @@ In the Web tab under **Static files**:
 
 | URL       | Path                                                  |
 |-----------|-------------------------------------------------------|
-| `/static/` | `/home/YOUR_PYTHONANYWHERE_USERNAME/tailor-app/static` |
+| `/static/` | `/home/shubhamnxtailoring/tailor-app/static` |
 
 ### 6. Reload
 
@@ -74,7 +74,7 @@ Click the **Reload** button at the top of the Web tab.
 ### 7. Visit your app
 
 ```
-https://YOUR_PYTHONANYWHERE_USERNAME.pythonanywhere.com
+https://shubhamnxtailoring.pythonanywhere.com
 ```
 
 ---
